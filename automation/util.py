@@ -25,7 +25,8 @@ def project_files(path):
             if src.is_file() and not target.exists():
                 target.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
     source = ROOT / "project-template" / "AGENTS.md"
-    if source.is_file() and not (path / "AGENTS.md").exists():
+    instructions = path / "AGENTS.md"
+    if source.is_file() and not instructions.exists():
         (path / "AGENTS.md").write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
     # Propagate process-control rules to projects bootstrapped before this change.
     if instructions.is_file():
