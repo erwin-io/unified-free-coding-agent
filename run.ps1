@@ -69,6 +69,20 @@ if ($env:AUTONOMOUS_ENABLED -eq "true" -and $env:AUTONOMOUS_AUTO_APPROVE -eq "tr
   $wp.Id | Set-Content (Join-Path $runtime "worker.pid")
   Write-Warning "Autonomous worker enabled; use ONLY a non-sensitive test repository."
 }
+$vs=Get-Command code.cmd -ErrorAction SilentlyContinue
+if (-not $vs) { $vs=Get-Command code -ErrorAction SilentlyContinue }
+if ($vs) {
+  try {
+    $exts= & $vs.Source --list-extensions | Out-String
+    if ($exts -notmatch "sst-dev.opencode-v2") {
+      Write-Host "Installing OpenCode VS Code integration (beta)..." -ForegroundColor Cyan
+      & $vs.Source --install-extension sst-dev.opencode-v2 | Out-Null
+    }
+    Start-Process -FilePath $vs.Source -ArgumentList @($project) | Out-Null
+  } catch {
+    Write-Warning "VS Code extension setup skipped; OpenCode CLI remains available."
+  }
+}
 Write-Host "Opening OpenCode in $project ..." -ForegroundColor Cyan
 Set-Location $project
 & $oc.Source $project
