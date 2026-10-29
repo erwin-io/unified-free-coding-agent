@@ -3,7 +3,7 @@
 ## Implemented in repository (local tests still required on your PC)
 - Free-only proxy with quota warnings, SQLite counters and pre-stream failover.
 - Single-agent SQLite task queue and per-project Markdown handoffs.
-- Bounded retries, configured acceptance test and owner-review gate.
+- Bounded retries, discovered project tests and owner-review gate.
 - Optional SMTP owner notifications.
 - OpenCode 2 configuration, Windows launcher, unit tests and CI.
 

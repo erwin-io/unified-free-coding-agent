@@ -16,10 +16,21 @@ class Tasks:
             attempts INT NOT NULL DEFAULT 0,
             next_run REAL NOT NULL DEFAULT 0,
             note TEXT NOT NULL DEFAULT '',
-            created REAL NOT NULL, updated REAL NOT NULL)""")
+            created REAL NOT NULL, updated REAL NOT NULL, source_id TEXT)""")
+        columns = {row[1] for row in self.db.execute("PRAGMA table_info(tasks)")}
+        if "source_id" not in columns:
+            self.db.execute("ALTER TABLE tasks ADD COLUMN source_id TEXT")
+        self.db.execute("""CREATE UNIQUE INDEX IF NOT EXISTS idx_source_tasks
+            ON tasks(project,source_id) WHERE source_id IS NOT NULL""")
         self.db.execute("CREATE INDEX IF NOT EXISTS idx_task_state ON tasks(status,next_run)")
 
-    def add(self, title, goal, project, dedupe=False):
+    def add(self, title, goal, project, dedupe=False, source_id=None):
+        if source_id is not None:
+            row = self.db.execute(
+                "SELECT id FROM tasks WHERE project=? AND source_id=?",
+                (project, source_id)).fetchone()
+            if row:
+                return row[0]
         if dedupe:
             row = self.db.execute("SELECT id FROM tasks WHERE title=? AND project=?",
                                   (title, project)).fetchone()
@@ -27,8 +38,9 @@ class Tasks:
                 return row[0]
         now = time.time()
         cur = self.db.execute(
-            "INSERT INTO tasks(title,goal,project,created,updated) VALUES(?,?,?,?,?)",
-            (title,goal,project,now,now))
+            """INSERT INTO tasks(title,goal,project,created,updated,source_id)
+               VALUES(?,?,?,?,?,?)""",
+            (title,goal,project,now,now,source_id))
         return cur.lastrowid
 
     def all(self):

@@ -37,8 +37,6 @@ Repository: https://github.com/erwin-io/unified-free-coding-agent
 | GEMINI_API_KEY | Optional | Google AI Studio free-tier project key |
 | OPENROUTER_API_KEY | Optional | OpenRouter free-route key |
 | PROJECT_PATH | Recommended | Absolute path to local Git project |
-| INITIAL_TASK | Optional | First task; seeded only once on project initialization |
-| TEST_COMMAND | Required for verified task completion | Acceptance command for chosen project |
 | AUTONOMOUS_ENABLED | No, defaults false | Enables unattended worker |
 | AUTONOMOUS_AUTO_APPROVE | No, defaults false | Allow headless OpenCode tools in a TEST repository only |
 | EMAIL_ENABLED, OWNER_EMAIL, SMTP_* | Optional | Sends owner notifications via SMTP |
@@ -52,7 +50,25 @@ Key registration: docs/ACCOUNTS.md. Read docs/SECURITY.md before unattended oper
     powershell -ExecutionPolicy Bypass -File .\run.ps1 -Mode test
     powershell -ExecutionPolicy Bypass -File .\run.ps1 -Mode once
 
-Task management after setup:
+Project tasks are defined in PROJECT_PATH/.agent/BACKLOG.md, which the launcher
+creates if missing. Edit a TASK-001 section with the title, description and
+acceptance criteria. Change Status: draft to Status: approved when YOU have
+authorized execution; the supervisor imports that task automatically.
+Interactive tasks can also be given directly in OpenCode, without a backlog entry.
+
+Tests are discovered from existing project commands rather than an environment
+variable: npm scripts (test, typecheck, lint), Go, Rust, .NET, Java, or Python
+project tests. If your project needs custom checks, create
+PROJECT_PATH/.agent/validation.json with the following JSON:
+
+    {"commands":[["npm","run","test"],["npm","run","lint"]]}
+
+Each command is executed with subprocess argv, no shell=True. The agent can
+run additional tests via terminal; the supervisor independently reruns the
+discovered commands and stores exit codes in .agent/TEST_EVIDENCE.md.
+If no usable tests exist, it pauses for owner review instead of passing.
+
+Optional CLI task management:
 
     .\.venv\Scripts\python.exe -m automation.cli add "Implement feature X, acceptance tests Y" --title "Feature X"
     .\.venv\Scripts\python.exe -m automation.cli status
@@ -82,9 +98,10 @@ No zero-outage, identical-model-quality or free-unlimited-use guarantee is made.
 
 ## Autonomous task acceptance
 
-The supervisor creates .agent/HANDOFF.md based on Git state.
-When an OpenCode run ends, the operator-configured TEST_COMMAND runs locally.
-Only an exit code of 0 on the task process and acceptance command changes status to
+The supervisor writes .agent/SUPERVISOR_STATE.md from observed Git state and keeps
+agent-authored .agent/HANDOFF.md separate. After an OpenCode run, it automatically
+runs discovered project validation commands (or .agent/validation.json commands).
+Only successful independent checks and a successful agent process change status to
 ready_for_review, not completed. The owner reviews the diff; no automatic deployment.
 If uncertain, the agent can put a question in .agent/OWNER_REQUEST.md and send an
 optional email; directions are entered through the local CLI, not by parsing email.

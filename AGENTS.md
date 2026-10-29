@@ -15,4 +15,8 @@ After meaningful milestones, update .agent/HANDOFF.md with:
 task ID, current status, files touched, verified tests/results, blockers and precise next action.
 Use git diff and actual tests after any model change. Do not trust a prior agent's claim of completion.
 When external capacity is exhausted, ensure changes remain on disk and leave an actionable checkpoint.
-Only mark complete when all acceptance criteria and test commands pass.
+Tasks are selected from the project's approved .agent/BACKLOG.md entries,
+not from environment variables. Run real project test scripts using terminal
+tools and preserve exact commands/exit codes. The supervisor independently
+re-runs recognized checks and records .agent/TEST_EVIDENCE.md.
+Only mark complete after tests pass and owner review accepts the work.

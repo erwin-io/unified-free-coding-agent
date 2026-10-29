@@ -6,7 +6,7 @@
    allowlist, per-provider metadata counters, utilization warnings and failover.
 3. Persistent SQLite supervisor owns task queue, retry policy, daily task cap,
    owner review state, capacity polling and optional owner notification.
-4. Each target repository owns architecture decisions, policy, actual source,
+4. Each target repository owns approved backlog, validation scripts, policy, actual source,
    Git diff and model-readable handoff documents.
 5. Models own none of the above. They are disposable inference workers.
 
@@ -31,6 +31,13 @@ running -> awaiting_owner (failed acceptance or max attempts)
 
 The supervisor state file is .agent/SUPERVISOR_STATE.md. Agents maintain their
 own .agent/HANDOFF.md, so supervisor updates cannot replace agent notes.
+The supervisor imports Status: approved backlog entries from
+PROJECT_PATH/.agent/BACKLOG.md, de-duplicated by project and stable TASK-ID.
+No initial task is read from .env. Independently verified project checks come
+from existing test scripts or an optional .agent/validation.json owned by the
+project. Missing checks do not pass; command outputs/exit codes are recorded
+in .agent/TEST_EVIDENCE.md. This is terminal-based execution, not serial-port
+testing (unless the project explicitly needs serial hardware).
 Git and actual test results are more authoritative than model-generated prose.
 
 ## Owner communication

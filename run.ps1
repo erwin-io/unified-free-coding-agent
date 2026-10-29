@@ -83,6 +83,8 @@ if ($vs) {
     Write-Warning "VS Code extension setup skipped; OpenCode CLI remains available."
   }
 }
+Write-Host "Approved tasks: $project\.agent\BACKLOG.md" -ForegroundColor Cyan
+Write-Host "Validation: existing project tests or .agent\validation.json" -ForegroundColor Cyan
 Write-Host "Opening OpenCode in $project ..." -ForegroundColor Cyan
 Set-Location $project
 & $oc.Source $project

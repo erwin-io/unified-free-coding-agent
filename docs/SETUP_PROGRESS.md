@@ -16,7 +16,8 @@
 - [ ] Leave AUTONOMOUS_ENABLED=false initially.
 - [ ] Execute powershell -ExecutionPolicy Bypass -File .\run.ps1
 - [ ] Verify router health, provider response and successful OpenCode tool call.
-- [ ] Set TEST_COMMAND and INITIAL_TASK for a non-sensitive test project.
+- [ ] Approve a task in PROJECT_PATH/.agent/BACKLOG.md and confirm its import.
+- [ ] Verify automatic test discovery and .agent/TEST_EVIDENCE.md outputs.
 - [ ] Verify git diff, checkpoint, task recovery and owner email if enabled.
 - [ ] Only after safety review: authorize autonomous sandboxed execution.
 
