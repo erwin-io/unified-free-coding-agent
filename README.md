@@ -22,7 +22,8 @@ Repository: https://github.com/erwin-io/unified-free-coding-agent
        powershell -ExecutionPolicy Bypass -File .\run.ps1
 
    It creates a Python virtual environment, installs requirements, runs local tests,
-   installs official OpenCode 2 if missing, starts the local model router, initializes
+   installs official OpenCode 2 if missing, optionally installs the official VS Code
+   beta integration if the code command is on PATH, starts the local model router, initializes
    project agent notes without overwriting existing files, and opens OpenCode.
    No GPU or paid API is required. You need Python 3.10+, Node.js/npm, Git and internet.
 
