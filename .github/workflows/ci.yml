@@ -32,6 +32,8 @@ jobs:
         run: npm run lint
       - name: Free capacity OpenCode plugin syntax
         run: node --check .opencode/plugins/unified-free-capacity-retry/index.js
+      - name: Simulated OpenCode retry decisions
+        run: node --test tests/opencode-retry.test.mjs
       - name: PowerShell launcher syntax
         if: runner.os == 'Windows'
         shell: pwsh
