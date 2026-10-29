@@ -29,7 +29,9 @@ Repository: https://github.com/erwin-io/unified-free-coding-agent
    does not yet contain a local Git repository, the launcher safely bootstraps a
    working full-stack Node.js demo into an empty directory, executes tests, creates
    a local Git baseline, and opens UI + API at http://127.0.0.1:3000.
-   It never overwrites a nonempty directory that is not a Git repository.
+   If a previous bootstrap copied only part of the demo, the script recognizes
+   matching template files, completes the missing files, and resumes Git init.
+   If files are unknown or edited, it refuses without overwriting or deleting them.
    No GPU or paid API is required. You need Python 3.10+, Node.js/npm, Git and internet.
 
 ## Accounts / env fields

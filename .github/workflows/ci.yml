@@ -30,3 +30,7 @@ jobs:
       - name: Demo app syntax checks
         working-directory: examples/test-nodejs-web-app
         run: npm run lint
+      - name: Windows bootstrap and interrupted-copy recovery
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test-bootstrap.ps1
