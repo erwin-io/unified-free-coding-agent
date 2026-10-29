@@ -29,7 +29,7 @@ the agent will open it as-is and inspect its current source/standards.
 
 Common: Python 3.10+, Git, Node.js/npm for OpenCode, VS Code recommended.
 Node-web: Node 20+.
-Angular-node: Node 20+, npx, internet to download the official @angular/cli and dependencies. New Angular versions may have stricter Node requirements; follow Angular CLI output.
+Angular-node: Angular v22 requires Node.js ^22.22.3 or ^24.15.0 or ^26.0.0; npx and internet are needed to download @angular/cli and dependencies. The scaffold checks this before creating files.
 MicroPython: Python only for host tests. Physical board interaction requires compatible MicroPython firmware, a USB serial connection and the optional mpremote package. Never upload or erase automatically.
 C++: CMake 3.20+, CTest and a working C++ compiler such as MSVC Build Tools, Clang or GCC. For ESP32/Arduino/RP2040 firmware, choose a particular board and install its compiler/toolchain or PlatformIO. No generic C++ binary can be flashed universally.
 

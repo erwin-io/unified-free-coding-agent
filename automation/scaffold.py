@@ -140,6 +140,19 @@ def scaffold(target: Path, stack: str, *, verify=True, git=True):
             raise ScaffoldError("Node.js 20+ is required")
     if stack == "angular-node":
         _tool("npx")
+        # Angular v22 requires Node ^22.22.3, ^24.15.0 or ^26.0.0.
+        # Check before running npx or modifying the target.
+        try:
+            version = subprocess.check_output(
+                ["node", "-p", "process.versions.node"], text=True, timeout=10).strip()
+            parts = tuple(int(x) for x in version.split(".")[:3])
+        except (ValueError, OSError, subprocess.CalledProcessError) as error:
+            raise ScaffoldError("Cannot determine Node.js version for Angular") from error
+        supported = ((parts[0] == 22 and parts >= (22, 22, 3)) or
+                     (parts[0] == 24 and parts >= (24, 15, 0)) or parts[0] >= 26)
+        if not supported:
+            raise ScaffoldError("Angular v22 requires Node >=22.22.3 (22.x), "
+                                ">=24.15.0 (24.x), or 26.x. Installed: " + version)
     if stack == "cpp":
         _tool("cmake")
         _tool("ctest")

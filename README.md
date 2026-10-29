@@ -48,6 +48,7 @@ Repository: https://github.com/erwin-io/unified-free-coding-agent
 | GEMINI_API_KEY | Optional | Google AI Studio free-tier project key |
 | OPENROUTER_API_KEY | Optional | OpenRouter free-route key |
 | PROJECT_PATH | Required for demo | C:\Development\test-nodejs-web-app |
+| PROJECT_STACK | New projects | auto, node-web, angular-node, micropython, cpp |
 | AUTONOMOUS_ENABLED | No, defaults false | Enables unattended worker |
 | AUTONOMOUS_AUTO_APPROVE | No, defaults false | Allow headless OpenCode tools in a TEST repository only |
 | EMAIL_ENABLED, OWNER_EMAIL, SMTP_* | Optional | Sends owner notifications via SMTP |
@@ -84,6 +85,15 @@ Optional CLI task management:
     .\.venv\Scripts\python.exe -m automation.cli add "Implement feature X, acceptance tests Y" --title "Feature X"
     .\.venv\Scripts\python.exe -m automation.cli status
     .\.venv\Scripts\python.exe -m automation.cli decide 1 "Approved approach B; keep API contract unchanged"
+
+For a NEW project, set PROJECT_PATH and PROJECT_STACK in .env, then run the
+same .\run.ps1 command. For one-time overrides, run:
+    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Stack angular-node
+
+Angular v22 needs Node 22.22.3+, Node 24.15+ or Node 26+.
+MicroPython hardware uploads require explicit mpremote/serial approval.
+C++ local builds require a compiler and CMake; embedded C++ requires a
+board-specific toolchain such as PlatformIO. See docs/STACKS.md.
 
 For unattended execution, set AUTONOMOUS_ENABLED=true and
 AUTONOMOUS_AUTO_APPROVE=true only in a disposable test repo you control.

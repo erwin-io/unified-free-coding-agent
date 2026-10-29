@@ -23,13 +23,21 @@ jobs:
         run: python -m unittest discover -s tests -v
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
       - name: Demo app tests
         working-directory: examples/test-nodejs-web-app
         run: npm test
       - name: Demo app syntax checks
         working-directory: examples/test-nodejs-web-app
         run: npm run lint
+      - name: PowerShell launcher syntax
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path ./run.ps1), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { throw ($errors | Out-String) }
       - name: Windows bootstrap and interrupted-copy recovery
         if: runner.os == 'Windows'
         shell: pwsh
