@@ -30,6 +30,8 @@ jobs:
       - name: Demo app syntax checks
         working-directory: examples/test-nodejs-web-app
         run: npm run lint
+      - name: Free capacity OpenCode plugin syntax
+        run: node --check .opencode/plugins/unified-free-capacity-retry/index.js
       - name: PowerShell launcher syntax
         if: runner.os == 'Windows'
         shell: pwsh
