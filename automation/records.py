@@ -48,7 +48,7 @@ class Tasks:
         self.db.execute("""UPDATE tasks SET status='waiting_capacity',next_run=?
             WHERE status='running' AND updated < ?""", (now,now-recover_seconds))
         completed_today = self.db.execute("""SELECT COUNT(*) FROM tasks
-            WHERE status='ready_for_review' AND updated >= ?""",
+            WHERE status IN ('ready_for_review','completed') AND updated >= ?""",
             (now-86400,)).fetchone()[0]
         if completed_today >= limit:
             return None
