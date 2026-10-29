@@ -141,6 +141,47 @@ if (Test-Path $demoManifest) {
     Start-Process "http://127.0.0.1:3000"
   }
 }
+# Start the generated Angular + Node.js starter through the same launcher.
+if (Test-Path $demoManifest) {
+  $appManifest = Get-Content -LiteralPath $demoManifest -Raw | ConvertFrom-Json
+  if ($appManifest.name -eq "unified-angular-node-starter") {
+    if (-not (Test-Path (Join-Path $project "frontend\package.json"))) {
+      throw "Angular project is missing frontend package.json."
+    }
+    $apiReady = $false
+    $uiReady = $false
+    try {
+      $apiStatus = Invoke-RestMethod "http://127.0.0.1:3001/api/health" -TimeoutSec 2
+      $apiReady = $apiStatus.service -eq "angular-node-api"
+    } catch {}
+    try {
+      $frontendStatus = Invoke-WebRequest "http://127.0.0.1:4200/" -UseBasicParsing -TimeoutSec 2
+      $uiReady = $frontendStatus.StatusCode -eq 200
+    } catch {}
+    if (-not $apiReady -and -not $uiReady) {
+      Write-Host "Starting Angular + Node.js development servers..." -ForegroundColor Cyan
+      $dev = Start-Process -FilePath "cmd.exe" -WorkingDirectory $project -PassThru -ArgumentList @("/d","/s","/c","npm run dev") -RedirectStandardOutput (Join-Path $runtime "angular.out.log") -RedirectStandardError (Join-Path $runtime "angular.err.log")
+      $dev.Id | Set-Content (Join-Path $runtime "angular.pid")
+      for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        Start-Sleep -Seconds 2
+        try {
+          $apiStatus = Invoke-RestMethod "http://127.0.0.1:3001/api/health" -TimeoutSec 2
+          $frontendStatus = Invoke-WebRequest "http://127.0.0.1:4200/" -UseBasicParsing -TimeoutSec 2
+          $apiReady = $apiStatus.service -eq "angular-node-api"
+          $uiReady = $frontendStatus.StatusCode -eq 200
+          if ($apiReady -and $uiReady) { break }
+        } catch {}
+        if ($dev.HasExited) { break }
+      }
+    }
+    if (-not $apiReady -or -not $uiReady) {
+      throw "Angular UI or Node API not ready. Inspect .agent-runtime\angular.err.log and verify ports 4200/3001."
+    }
+    Write-Host "Angular UI: http://127.0.0.1:4200" -ForegroundColor Green
+    Write-Host "Node API: http://127.0.0.1:3001/api/health" -ForegroundColor Green
+    Start-Process "http://127.0.0.1:4200"
+  }
+}
 Write-Host "Approved tasks: $project\.agent\BACKLOG.md" -ForegroundColor Cyan
 Write-Host "Validation: existing project tests or .agent\validation.json" -ForegroundColor Cyan
 Write-Host "Opening OpenCode in $project ..." -ForegroundColor Cyan
