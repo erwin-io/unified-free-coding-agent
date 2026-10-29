@@ -76,7 +76,26 @@ if (-not $oc) { throw "OpenCode missing. Restart PowerShell and retry." }
 $online=$false
 try { $health=Invoke-RestMethod "http://127.0.0.1:4030/health" -TimeoutSec 2; $online=($health.status -eq "ok" -and $health.mode -eq "FREE_ONLY") } catch {}
 if ($online -and $health.revision -ne "2026-10-30-signature-guard") {
-  throw "An earlier router process is still running on port 4030. Close that process and run this launcher again."
+  $routerPidFile = Join-Path $runtime "router.pid"
+  if (-not (Test-Path $routerPidFile)) {
+    throw "Router is outdated, but no local PID record exists. Close the router manually and retry."
+  }
+  $pidText = (Get-Content $routerPidFile -Raw).Trim()
+  if ($pidText -notmatch "^[0-9]+$") { throw "Invalid local router PID record." }
+  $routerPid = [int]$pidText
+  $owned = Get-CimInstance Win32_Process -Filter "ProcessId = $routerPid" -ErrorAction SilentlyContinue
+  if (-not $owned) { throw "Router PID record is stale. Close the process on port 4030 manually." }
+  $expected = [IO.Path]::GetFullPath($python)
+  $actual = [IO.Path]::GetFullPath($owned.ExecutablePath)
+  if ($actual -ine $expected -or
+      $owned.CommandLine -notmatch "uvicorn router\\.app:app" -or
+      $owned.CommandLine -notmatch "--port 4030") {
+    throw "Port 4030 is not verified as this installation's router. Refusing to stop an unknown process."
+  }
+  Write-Host "Restarting the old router that belongs to this installation..." -ForegroundColor Cyan
+  Stop-Process -Id $routerPid -ErrorAction Stop
+  Start-Sleep -Seconds 2
+  $online = $false
 }
 if (-not $online) {
   Write-Host "Starting local gateway..." -ForegroundColor Cyan
