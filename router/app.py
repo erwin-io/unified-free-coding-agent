@@ -79,7 +79,7 @@ def candidates(body):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "mode": "FREE_ONLY", "providers": [p.name for p in FREE_PROVIDERS]}
+    return {"status": "ok", "mode": "FREE_ONLY", "revision": ROUTER_REVISION, "providers": [p.name for p in FREE_PROVIDERS]}
 
 
 @app.get("/router/status")
