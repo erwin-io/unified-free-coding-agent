@@ -18,6 +18,13 @@ class SafeRouting(unittest.TestCase):
             self.assertNotIn("gemini",[p.name for p in choices])
             self.assertEqual({p.model for p in choices},{"kilo-auto/free","openrouter/free"})
 
+    def test_retired_model_maps_to_current_free_flash(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY":"test",
+                                     "GEMINI_MODEL":"gemini-2.5-flash",
+                                     "OPENROUTER_API_KEY":"",
+                                     "KILO_ENABLED":"false"}):
+            self.assertEqual(providers()[0].model,"gemini-3.8-flash")
+
     def test_all_disabled(self):
         with patch.dict(os.environ, {"OPENROUTER_API_KEY":"",
                                      "GEMINI_API_KEY":"",
