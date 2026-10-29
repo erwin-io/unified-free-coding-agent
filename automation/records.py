@@ -24,6 +24,16 @@ class Tasks:
             ON tasks(project,source_id) WHERE source_id IS NOT NULL""")
         self.db.execute("CREATE INDEX IF NOT EXISTS idx_task_state ON tasks(status,next_run)")
 
+    def close(self):
+        """Release the SQLite file immediately, including on Windows."""
+        self.db.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
     def add(self, title, goal, project, dedupe=False, source_id=None):
         if source_id is not None:
             row = self.db.execute(

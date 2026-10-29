@@ -19,6 +19,17 @@ class Store:
             (provider TEXT PRIMARY KEY, until_ts REAL NOT NULL, reason TEXT NOT NULL)""")
         self.db.commit()
 
+    def close(self):
+        """Close SQLite explicitly (important for Windows file-lock semantics)."""
+        with self.lock:
+            self.db.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+
     def add(self, provider, status, latency_ms, in_tokens=None, out_tokens=None):
         with self.lock:
             self.db.execute("INSERT INTO calls VALUES (?,?,?,?,?,?)",

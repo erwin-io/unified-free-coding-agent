@@ -18,11 +18,11 @@ class TaskSource(unittest.TestCase):
             (path/".agent"/"BACKLOG.md").write_text(
                 "## TASK-101: Fix login\nStatus: approved\nAcceptance:\n- Login test passes\n"
                 "## TASK-102: Payment change\nStatus: draft\n", encoding="utf-8")
-            tasks=Tasks(path/"queue.sqlite3")
-            self.assertEqual(sync_approved_tasks(path,tasks),1)
-            self.assertEqual(sync_approved_tasks(path,tasks),0)
-            self.assertEqual(len(tasks.all()),1)
-            self.assertIn("Login test",tasks.get(tasks.all()[0]["id"])["goal"])
+            with Tasks(path/"queue.sqlite3") as tasks:
+                self.assertEqual(sync_approved_tasks(path,tasks),1)
+                self.assertEqual(sync_approved_tasks(path,tasks),0)
+                self.assertEqual(len(tasks.all()),1)
+                self.assertIn("Login test",tasks.get(tasks.all()[0]["id"])["goal"])
 
     def test_duplicate_task_ids_block_import(self):
         with tempfile.TemporaryDirectory() as d:
@@ -48,8 +48,8 @@ class TaskSource(unittest.TestCase):
                 created REAL NOT NULL, updated REAL NOT NULL)""")
             conn.commit()
             conn.close()
-            tasks=Tasks(db)
-            self.assertEqual(tasks.get(tasks.add("A","B",d,source_id="TASK-1"))["status"],"queued")
+            with Tasks(db) as tasks:
+                self.assertEqual(tasks.get(tasks.add("A","B",d,source_id="TASK-1"))["status"],"queued")
 
 
 class ProjectValidation(unittest.TestCase):
