@@ -88,7 +88,7 @@ if ($online -and $health.revision -ne "2026-10-30-signature-guard") {
   $expected = [IO.Path]::GetFullPath($python)
   $actual = [IO.Path]::GetFullPath($owned.ExecutablePath)
   if ($actual -ine $expected -or
-      $owned.CommandLine -notmatch "uvicorn router\\.app:app" -or
+      $owned.CommandLine -notlike "*uvicorn router.app:app*" -or
       $owned.CommandLine -notmatch "--port 4030") {
     throw "Port 4030 is not verified as this installation's router. Refusing to stop an unknown process."
   }
