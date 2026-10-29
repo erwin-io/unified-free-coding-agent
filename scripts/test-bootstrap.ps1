@@ -29,21 +29,28 @@ try {
   }
   Write-Host "PASS: interrupted copy safely resumed"
 
-  # Unknown data: reject without altering it or initializing Git.
+  # Extra data: preserve without staging, even when there are no demo files yet.
   $unknown = Join-Path $working "unknown\test-nodejs-web-app"
   New-Item -ItemType Directory -Force -Path $unknown | Out-Null
-  $unknownFile = Join-Path $unknown "do-not-touch.txt"
+  $unknownFile = Join-Path $unknown "filestructure.txt"
   Set-Content -LiteralPath $unknownFile -Value "personal work" -NoNewline
-  $rejected = $false
-  try { & $bootstrap -Target $unknown } catch {
-    if ($_.Exception.Message -match "Existing unknown file") { $rejected = $true }
-    else { throw }
+  $beforeHash = (Get-FileHash -LiteralPath $unknownFile -Algorithm SHA256).Hash
+  & $bootstrap -Target $unknown
+  $afterHash = (Get-FileHash -LiteralPath $unknownFile -Algorithm SHA256).Hash
+  if ($beforeHash -ne $afterHash -or
+      -not (Test-Path -LiteralPath (Join-Path $unknown ".git")) -or
+      -not (Test-Path -LiteralPath (Join-Path $unknown "server.js"))) {
+    throw "Extra file preservation or demo initialization failed."
   }
-  if (-not $rejected -or -not (Test-Path -LiteralPath $unknownFile) -or
-      (Test-Path -LiteralPath (Join-Path $unknown ".git"))) {
-    throw "Unknown files were not handled safely."
+  $tracked = & git -C $unknown ls-files
+  if ($tracked -contains "filestructure.txt") {
+    throw "Unrelated existing file must remain untracked."
   }
-  Write-Host "PASS: unknown existing files left untouched"
+  $status = & git -C $unknown status --short -- filestructure.txt
+  if ($status -notmatch "^\?\? filestructure.txt") {
+    throw "Existing extra file must remain untouched and untracked."
+  }
+  Write-Host "PASS: existing extra files preserved without staging"
 
   # Edited template: reject instead of replacing user modifications.
   $modified = Join-Path $working "modified\test-nodejs-web-app"

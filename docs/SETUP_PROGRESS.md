@@ -8,6 +8,7 @@
 - [x] OpenCode 2 integration configuration and editor extension bootstrap.
 - [x] Node.js full-stack example UI, in-memory API and four automated tests.
 - [x] Windows demo project scaffold, local Git baseline and health-check launch script.
+- [x] Safe handling of unrelated pre-existing files (preserved, not staged, no overwrite).
 - [x] Unit-test/compile workflow configured on GitHub Actions.
 
 ## Owner-side (not verified; do not mark complete without evidence)

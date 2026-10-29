@@ -1,7 +1,7 @@
 param(
   [Parameter(Mandatory=$true)][string]$Target
 )
-# Safe, resumable bootstrap. Never overwrite, delete or initialize an unknown project.
+# Safe, resumable bootstrap. Preserve unrelated files, reject conflicting demo files.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $root "examples\test-nodejs-web-app"
@@ -38,22 +38,27 @@ if (Test-Path -LiteralPath (Join-Path $targetRoot ".git")) {
   throw "Target already has Git metadata. Run the normal launcher instead."
 }
 
-# Preflight all existing files before changing anything. A partial copy of THIS
-# demo is recoverable; an unrelated directory or locally edited file is not.
+# Preflight BEFORE any changes. Preserve unrelated files as untracked. Existing
+# demo files must be byte-for-byte identical to prevent overwriting user edits.
 $existing = @(Get-ChildItem -LiteralPath $targetRoot -Recurse -File -Force)
+$extra = @()
+$matching = 0
 foreach ($file in $existing) {
   if ($file.Attributes -band [IO.FileAttributes]::ReparsePoint) {
     throw "Refusing to follow a symbolic link: $($file.FullName)"
   }
   $relative = $file.FullName.Substring($targetRoot.Length).TrimStart('\', '/')
   if (-not $required.ContainsKey($relative)) {
-    throw "Existing unknown file '$relative' in $targetFull. Nothing was overwritten. Inspect the project before initializing Git."
+    # e.g. filestructure.txt. Never copy over, remove, read or stage these files.
+    $extra += $relative
+    continue
   }
   $expectedHash = (Get-FileHash -LiteralPath $required[$relative] -Algorithm SHA256).Hash
   $actualHash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash
   if ($expectedHash -ne $actualHash) {
     throw "Existing file '$relative' differs from the demo template. Nothing was overwritten. Back up or use your existing project manually."
   }
+  $matching++
 }
 # Reject directory junctions too, so a missing file cannot be written outside target.
 foreach ($directory in @(Get-ChildItem -LiteralPath $targetRoot -Recurse -Directory -Force)) {
@@ -61,11 +66,16 @@ foreach ($directory in @(Get-ChildItem -LiteralPath $targetRoot -Recurse -Direct
     throw "Refusing to enter a linked directory: $($directory.FullName)"
   }
 }
-$recovered = $existing.Count -gt 0
-if ($recovered) {
-  Write-Host "Recognized the existing partial demo; resuming safely without overwriting files." -ForegroundColor Cyan
+if ($matching -gt 0) {
+  Write-Host "Recognized $matching existing demo file(s). Resuming without overwriting." -ForegroundColor Cyan
 } else {
-  Write-Host "Creating the new Node.js demo project..." -ForegroundColor Cyan
+  Write-Host "Creating the Node.js demo in the selected project directory..." -ForegroundColor Cyan
+}
+if ($extra.Count -gt 0) {
+  Write-Warning ("Preserving " + $extra.Count + " existing non-template file(s) as untracked.")
+  foreach ($relative in @($extra | Sort-Object)) {
+    Write-Host ("  Preserved: " + $relative)
+  }
 }
 
 $added = 0
@@ -78,7 +88,7 @@ foreach ($relative in @($required.Keys | Sort-Object)) {
     $added++
   }
 }
-Write-Host "Verified existing files: $($existing.Count); missing files copied: $added" -ForegroundColor Cyan
+Write-Host "Verified demo files: $matching; copied missing demo files: $added; preserved other files: $($extra.Count)" -ForegroundColor Cyan
 
 Push-Location $targetRoot
 try {

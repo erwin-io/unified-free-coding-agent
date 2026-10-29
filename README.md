@@ -31,7 +31,9 @@ Repository: https://github.com/erwin-io/unified-free-coding-agent
    a local Git baseline, and opens UI + API at http://127.0.0.1:3000.
    If a previous bootstrap copied only part of the demo, the script recognizes
    matching template files, completes the missing files, and resumes Git init.
-   If files are unknown or edited, it refuses without overwriting or deleting them.
+   Unrelated existing files (such as filestructure.txt) are preserved, not staged
+   or overwritten. Existing demo files that differ from the template still block
+   setup, so the script never silently replaces user source code.
    No GPU or paid API is required. You need Python 3.10+, Node.js/npm, Git and internet.
 
 ## Accounts / env fields
