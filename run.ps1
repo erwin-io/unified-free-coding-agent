@@ -35,7 +35,14 @@ if ($Mode -eq "test") { & $python -m unittest discover -s tests -v; exit $LASTEX
 if ($Mode -eq "router") { & $python -m uvicorn router.app:app --host 127.0.0.1 --port 4030; exit $LASTEXITCODE }
 if ($Mode -eq "worker") { & $python -m automation.cli worker; exit $LASTEXITCODE }
 if ($Mode -in @("once","status","doctor","init-project")) { & $python -m automation.cli $Mode; exit $LASTEXITCODE }
-if (-not (Test-Path (Join-Path $project ".git"))) { throw "PROJECT_PATH must be a local Git repository: $project" }
+if (-not (Test-Path (Join-Path $project ".git"))) {
+  if ((Split-Path $project -Leaf) -eq "test-nodejs-web-app") {
+    & (Join-Path $root "scripts\bootstrap-test-project.ps1") -Target $project
+    if (-not (Test-Path (Join-Path $project ".git"))) { throw "Test project bootstrap failed." }
+  } else {
+    throw "PROJECT_PATH must be a local Git repository: $project"
+  }
+}
 & $python -m unittest discover -s tests -q
 if ($LASTEXITCODE -ne 0) { throw "Self-tests failed. Router not started." }
 & $python -m automation.cli init-project
@@ -81,6 +88,41 @@ if ($vs) {
     Start-Process -FilePath $vs.Source -ArgumentList @($project) | Out-Null
   } catch {
     Write-Warning "VS Code extension setup skipped; OpenCode CLI remains available."
+  }
+}
+$demoManifest=Join-Path $project "package.json"
+if (Test-Path $demoManifest) {
+  $demo=Get-Content -LiteralPath $demoManifest -Raw | ConvertFrom-Json
+  if ($demo.name -eq "unified-agent-test-web-app") {
+    Push-Location $project
+    try {
+      & $npm.Source test
+      if ($LASTEXITCODE -ne 0) { throw "Demo backend tests failed; will not start." }
+      & $npm.Source run lint
+      if ($LASTEXITCODE -ne 0) { throw "Demo syntax validation failed." }
+    } finally { Pop-Location }
+    $demoOnline=$false
+    try {
+      $demoHealth=Invoke-RestMethod "http://127.0.0.1:3000/api/health" -TimeoutSec 2
+      if ($demoHealth.application -eq "test-nodejs-web-app") { $demoOnline=$true }
+      else { throw "Port 3000 is serving a different application." }
+    } catch {
+      if ($_.Exception.Message -like "*different application*") { throw }
+    }
+    if (-not $demoOnline) {
+      Write-Host "Starting Node.js UI and API..." -ForegroundColor Cyan
+      $dp=Start-Process -FilePath (Get-Command node.exe).Source -WorkingDirectory $project -PassThru -ArgumentList @("server.js") -RedirectStandardOutput (Join-Path $runtime "demo.out.log") -RedirectStandardError (Join-Path $runtime "demo.err.log")
+      $dp.Id | Set-Content (Join-Path $runtime "demo.pid")
+      Start-Sleep -Seconds 2
+    }
+    try {
+      $demoHealth=Invoke-RestMethod "http://127.0.0.1:3000/api/health" -TimeoutSec 5
+      if ($demoHealth.application -ne "test-nodejs-web-app" -or $demoHealth.status -ne "ok") {
+        throw "Unexpected demo health response."
+      }
+    } catch { throw "Node demo API failed to start. See .agent-runtime\demo.err.log." }
+    Write-Host "Node.js demo: http://127.0.0.1:3000" -ForegroundColor Green
+    Start-Process "http://127.0.0.1:3000"
   }
 }
 Write-Host "Approved tasks: $project\.agent\BACKLOG.md" -ForegroundColor Cyan

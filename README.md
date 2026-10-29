@@ -25,6 +25,11 @@ Repository: https://github.com/erwin-io/unified-free-coding-agent
    installs official OpenCode 2 if missing, optionally installs the official VS Code
    beta integration if the code command is on PATH, starts the local model router, initializes
    project agent notes without overwriting existing files, and opens OpenCode.
+   If PROJECT_PATH points to C:\Development\test-nodejs-web-app and that folder
+   does not yet contain a local Git repository, the launcher safely bootstraps a
+   working full-stack Node.js demo into an empty directory, executes tests, creates
+   a local Git baseline, and opens UI + API at http://127.0.0.1:3000.
+   It never overwrites a nonempty directory that is not a Git repository.
    No GPU or paid API is required. You need Python 3.10+, Node.js/npm, Git and internet.
 
 ## Accounts / env fields
@@ -36,7 +41,7 @@ Repository: https://github.com/erwin-io/unified-free-coding-agent
 | KILO_API_KEY | Optional | Authenticated Kilo gateway |
 | GEMINI_API_KEY | Optional | Google AI Studio free-tier project key |
 | OPENROUTER_API_KEY | Optional | OpenRouter free-route key |
-| PROJECT_PATH | Recommended | Absolute path to local Git project |
+| PROJECT_PATH | Required for demo | C:\Development\test-nodejs-web-app |
 | AUTONOMOUS_ENABLED | No, defaults false | Enables unattended worker |
 | AUTONOMOUS_AUTO_APPROVE | No, defaults false | Allow headless OpenCode tools in a TEST repository only |
 | EMAIL_ENABLED, OWNER_EMAIL, SMTP_* | Optional | Sends owner notifications via SMTP |

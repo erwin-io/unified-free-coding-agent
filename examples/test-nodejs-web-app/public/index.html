@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Lab · Full-stack Node Demo</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo">◆</span><span>Agent<span class="light">Lab</span></span></div>
+      <div class="nav-title">WORKSPACE</div>
+      <div class="nav-item active">▦ &nbsp; Dashboard</div>
+      <div class="nav-item">◉ &nbsp; API Console</div>
+      <div class="sidebar-bottom">LOCAL-FIRST DEMO<br><small>Node.js · No database</small></div>
+    </aside>
+    <main>
+      <header><div class="eyebrow">DEVELOPMENT WORKSPACE / DEMO</div><h1>Full-stack test dashboard <span class="accent">✳</span></h1><p>Confirm your UI and backend API work together before giving the agent coding tasks.</p></header>
+      <div class="cards">
+        <section class="card"><div class="card-label">API STATUS</div><strong id="api-status">Checking…</strong><div id="api-detail" class="muted">Connecting to backend</div></section>
+        <section class="card"><div class="card-label">TOTAL TASKS</div><strong id="total-count">0</strong><div class="muted">Stored in server memory</div></section>
+        <section class="card"><div class="card-label">COMPLETED</div><strong id="done-count">0</strong><div class="muted">Changes update live</div></section>
+      </div>
+      <section class="panel">
+        <div class="panel-head"><div><div class="eyebrow">INTERACTIVE API EXAMPLE</div><h2>Task board</h2></div><span class="tag">GET · POST · PATCH · DELETE</span></div>
+        <form id="task-form"><label for="title">New task</label><div class="form-row"><input required maxlength="120" id="title" name="title" placeholder="e.g. Build a new profile page" autocomplete="off"><button type="submit">+ Add task</button></div></form>
+        <div id="feedback" role="status" aria-live="polite"></div>
+        <ul id="task-list" class="task-list"></ul>
+        <p id="empty" class="empty">Your board is empty. Add a task to test the backend.</p>
+      </section>
+      <footer>Test endpoints: <code>/api/health</code> · <code>/api/tasks</code> <span>· In-memory storage resets when server restarts.</span></footer>
+    </main>
+  </div>
+</body>
+</html>

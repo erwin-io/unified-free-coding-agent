@@ -1,0 +1,14 @@
+{
+  "name": "unified-agent-test-web-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "No-database full-stack Node.js smoke-test project",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test",
+    "lint": "node --check server.js && node --check public/app.js"
+  },
+  "engines": { "node": ">=20" }
+}
