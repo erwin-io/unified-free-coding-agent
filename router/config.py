@@ -46,9 +46,14 @@ def providers():
             "kilo-auto/free", os.getenv("KILO_API_KEY", ""),
             hour_cap=integer("KILO_HOURLY_CAP", 200), context=30000))
     gemini = os.getenv("GEMINI_API_KEY", "")
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-    # Never permit arbitrary paid-model IDs through env.
-    if gemini and model in ("gemini-2.5-flash", "gemini-2.5-flash-lite"):
+    selected = os.getenv("GEMINI_MODEL", "gemini-3.8-flash").strip()
+    legacy_to_free = {
+        "gemini-2.5-flash": "gemini-3.8-flash",
+        "gemini-2.5-flash-lite": "gemini-3.5-flash-lite",
+    }
+    model = legacy_to_free.get(selected, selected)
+    # Only current Google API free-tier models are accepted.
+    if gemini and model in ("gemini-3.8-flash", "gemini-3.5-flash-lite"):
         result.append(Provider(
             "gemini", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
             model, gemini, minute_cap=integer("GEMINI_MINUTE_CAP", 0),
