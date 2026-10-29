@@ -1,0 +1,8 @@
+:host {display:block;min-height:100vh;background:#101b22;color:#e6f5ef;font-family:Inter,system-ui,sans-serif}
+.shell {max-width:900px;margin:0 auto;padding:100px 30px}
+.eyebrow,.label {letter-spacing:2px;font-size:11px;color:#83bdab;font-weight:700}
+h1 {font-size:clamp(40px,7vw,80px);margin:18px 0;letter-spacing:-2px}
+h1 span {color:#8ed2b7}.lead {color:#aabdb7;font-size:18px}
+.panel {padding:34px;border:1px solid #3a5c54;border-radius:14px;background:#1a2c32;margin-top:60px}
+.panel h2 {font-size:38px;margin:20px 0;color:#97edc1}
+.panel p:last-child {color:#aabdb7}.hint {font-size:12px;color:#79978c;margin-top:40px}

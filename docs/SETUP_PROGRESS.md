@@ -8,6 +8,8 @@
 - [x] OpenCode 2 integration configuration and editor extension bootstrap.
 - [x] Node.js full-stack example UI, in-memory API and four automated tests.
 - [x] Windows demo project scaffold, local Git baseline and health-check launch script.
+- [x] Shared scaffold entrypoint and language-specific templates for Node, Angular/Node, MicroPython and C++.
+- [ ] Live Angular CLI initialization and target-specific hardware upload verified on user's PC.
 - [x] Safe handling of unrelated pre-existing files (preserved, not staged, no overwrite).
 - [x] Unit-test/compile workflow configured on GitHub Actions.
 

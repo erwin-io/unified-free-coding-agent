@@ -1,6 +1,8 @@
 # Unified Free Coding Agent
 
 A Windows-first, free-cloud-only coding gateway and supervisor that works with OpenCode 2.
+It now includes safe project scaffolding and stack-specific skills for Node.js + HTML/CSS/JS,
+Angular + Node.js, MicroPython and C++/CMake. See docs/STACKS.md.
 Repository: https://github.com/erwin-io/unified-free-coding-agent
 
 ## Quick start: your only required actions
@@ -124,6 +126,9 @@ Logs are kept locally and can contain model text: protect your workstation.
 - router: free model gateway and metadata usage store
 - automation: persistent backlog, single-agent runner, owner notifications
 - project-template/.agent: shared notes, contracts and handoff templates
+- templates/: Angular + Node, MicroPython and C++ starters
+- automation/scaffold.py: reusable non-overwriting project initializer
+- docs/STACKS.md: prerequisites, supported stacks, hardware limitations
 - .opencode: reviewer role and handoff skill
 - run.ps1: Windows one-command setup and launcher
 - tests: offline unit tests

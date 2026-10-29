@@ -51,6 +51,13 @@ def discover(path):
                     checks.append((npm, "run", key))
         if checks:
             return checks
+    if (path / "platformio.ini").exists():
+        # Build embedded firmware, never upload or erase it automatically.
+        return [("pio", "run")]
+    if (path / "CMakeLists.txt").exists():
+        return [("cmake", "-S", ".", "-B", "build"),
+                ("cmake", "--build", "build", "--config", "Debug"),
+                ("ctest", "--test-dir", "build", "-C", "Debug", "--output-on-failure")]
     if (path / "go.mod").exists():
         return [("go", "test", "./...")]
     if (path / "Cargo.toml").exists():

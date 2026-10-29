@@ -1,0 +1,19 @@
+{
+  "commands": [
+    [
+      "npm",
+      "run",
+      "test"
+    ],
+    [
+      "npm",
+      "run",
+      "lint"
+    ],
+    [
+      "npm",
+      "run",
+      "typecheck"
+    ]
+  ]
+}

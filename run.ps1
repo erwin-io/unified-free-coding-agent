@@ -1,4 +1,7 @@
-param([ValidateSet("start","router","worker","once","status","doctor","test","init-project")][string]$Mode="start")
+param(
+  [ValidateSet("start","router","worker","once","status","doctor","test","init-project")][string]$Mode="start",
+  [ValidateSet("auto","node-web","angular-node","micropython","cpp")][string]$Stack="auto"
+)
 $ErrorActionPreference="Stop"
 $root=Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $root
@@ -36,12 +39,25 @@ if ($Mode -eq "router") { & $python -m uvicorn router.app:app --host 127.0.0.1 -
 if ($Mode -eq "worker") { & $python -m automation.cli worker; exit $LASTEXITCODE }
 if ($Mode -in @("once","status","doctor","init-project")) { & $python -m automation.cli $Mode; exit $LASTEXITCODE }
 if (-not (Test-Path (Join-Path $project ".git"))) {
-  if ((Split-Path $project -Leaf) -eq "test-nodejs-web-app") {
-    & (Join-Path $root "scripts\bootstrap-test-project.ps1") -Target $project
-    if (-not (Test-Path (Join-Path $project ".git"))) { throw "Test project bootstrap failed." }
-  } else {
-    throw "PROJECT_PATH must be a local Git repository: $project"
+  $selectedStack = $Stack
+  if ($selectedStack -eq "auto" -and $env:PROJECT_STACK) { $selectedStack = $env:PROJECT_STACK }
+  if ((Split-Path $project -Leaf) -eq "test-nodejs-web-app" -and $selectedStack -eq "auto") {
+    $selectedStack = "node-web"
   }
+  if ($selectedStack -eq "auto") {
+    throw "A new project needs a stack: set PROJECT_STACK in .env or run .\run.ps1 -Stack node-web|angular-node|micropython|cpp."
+  }
+  if ($selectedStack -notin @("node-web","angular-node","micropython","cpp")) {
+    throw "Unsupported PROJECT_STACK: $selectedStack"
+  }
+  if ((Split-Path $project -Leaf) -eq "test-nodejs-web-app" -and $selectedStack -eq "node-web") {
+    # Existing demo recovery logic also protects pre-existing unrelated files.
+    & (Join-Path $root "scripts\bootstrap-test-project.ps1") -Target $project
+  } else {
+    & $python -m automation.scaffold --stack $selectedStack --target $project
+    if ($LASTEXITCODE -ne 0) { throw "Project scaffold halted. No source was overwritten." }
+  }
+  if (-not (Test-Path (Join-Path $project ".git"))) { throw "Project scaffold did not create a verified Git baseline." }
 }
 & $python -m unittest discover -s tests -q
 if ($LASTEXITCODE -ne 0) { throw "Self-tests failed. Router not started." }
