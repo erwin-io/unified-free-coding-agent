@@ -26,7 +26,7 @@ FREE_PROVIDERS = providers()
 KEY = os.getenv("FREE_ROUTER_KEY", "local-agent-only")
 RESERVE = min(50, integer("ROUTER_RESERVE_PERCENT", 10))
 TIMEOUT = max(15, integer("UPSTREAM_TIMEOUT_SECONDS", 120))
-ROUTER_REVISION = "2026-10-30-gemini38"
+ROUTER_REVISION = "2026-10-30-signature-guard"
 
 
 @asynccontextmanager
@@ -66,10 +66,28 @@ def status_for(provider):
             "token_totals": DB.usage(provider.name)}
 
 
+def requires_tools(body):
+    """Direct Gemini 3 needs signatures this OpenAI-compatible client may lose."""
+    if body.get("tools") or body.get("functions"):
+        return True
+    if body.get("tool_choice") not in (None, "none"):
+        return True
+    if body.get("function_call") not in (None, "none"):
+        return True
+    return any(isinstance(m, dict) and (
+        m.get("role") in ("tool", "function") or m.get("tool_calls") or
+        m.get("function_call")) for m in body.get("messages", []))
+
+
+def accepts_request(provider, body):
+    # Do not invent Gemini signatures or replay tool chains to an incompatible API.
+    return provider.name != "gemini" or not requires_tools(body)
+
+
 def candidates(body):
     approx = estimate_tokens(body)
     available = [p for p in FREE_PROVIDERS
-                 if approx < p.context and status_for(p)["eligible"]]
+                 if approx < p.context and accepts_request(p, body) and status_for(p)["eligible"]]
     if len(available) > 1:
         available.sort(key=lambda p: (
             status_for(p)["warning"] in ("handoff", "critical"),
@@ -85,8 +103,13 @@ def health():
 @app.get("/router/status")
 def status(authorization: str | None = Header(default=None)):
     authorize(authorization)
-    return {"mode": "FREE_ONLY", "providers": [status_for(p) for p in FREE_PROVIDERS],
-            "any_available": any(status_for(p)["eligible"] for p in FREE_PROVIDERS)}
+    return {"mode": "FREE_ONLY", "providers": [
+                {**status_for(p), "tool_eligible": (
+                    p.name != "gemini" and status_for(p)["eligible"])}
+                for p in FREE_PROVIDERS],
+            "any_available": any(status_for(p)["eligible"] for p in FREE_PROVIDERS),
+            "any_tool_available": any(p.name != "gemini" and
+                                      status_for(p)["eligible"] for p in FREE_PROVIDERS)}
 
 
 @app.get("/v1/models")
@@ -108,8 +131,14 @@ async def chat(req: Request, authorization: str | None = Header(default=None)):
     options = candidates(body)
     if not options:
         return JSONResponse(status_code=503, content={"error": {
-            "code": "FREE_CAPACITY_EXHAUSTED",
-            "message": "No free model is currently eligible. Preserve your checkpoint and retry later."}})
+            "code": ("FREE_TOOL_CAPACITY_UNAVAILABLE" if requires_tools(body)
+                     else "FREE_CAPACITY_EXHAUSTED"),
+            "message": ("No compatible free provider currently has capacity for "
+                        "coding tools. Gemini is temporarily excluded because "
+                        "thought signatures may be lost in the client history."
+                        if requires_tools(body) else
+                        "No free model is currently eligible. Preserve your checkpoint "
+                        "and retry later.")}})
     errors = []
     for p in options:
         payload = dict(body)

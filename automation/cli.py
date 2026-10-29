@@ -70,7 +70,7 @@ def run_task(tasks, task):
         tasks.transition(task["id"], "waiting_capacity", "Router not reachable",
                          time.time()+120)
         return
-    if not capacity.get("any_available"):
+    if not capacity.get("any_tool_available"):
         if task["status"] != "waiting_capacity":
             notify("[Unified Agent] All free models unavailable",
                    "Task #"+str(task["id"])+" is checkpointed. The supervisor will check again automatically.")

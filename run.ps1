@@ -75,7 +75,7 @@ if (-not $oc) { $oc=Get-Command opencode -ErrorAction SilentlyContinue }
 if (-not $oc) { throw "OpenCode missing. Restart PowerShell and retry." }
 $online=$false
 try { $health=Invoke-RestMethod "http://127.0.0.1:4030/health" -TimeoutSec 2; $online=($health.status -eq "ok" -and $health.mode -eq "FREE_ONLY") } catch {}
-if ($online -and $health.revision -ne "2026-10-30-gemini38") {
+if ($online -and $health.revision -ne "2026-10-30-signature-guard") {
   throw "An earlier router process is still running on port 4030. Close that process and run this launcher again."
 }
 if (-not $online) {
