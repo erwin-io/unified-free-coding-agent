@@ -66,5 +66,9 @@ class Tasks:
         task = self.get(task_id)
         if not task or task["status"] not in ("awaiting_owner","ready_for_review"):
             return False
-        self.transition(task_id,"queued","Owner direction: "+direction)
+        if task["status"] == "ready_for_review":
+            self.transition(task_id, "completed", "Owner accepted: "+direction)
+        else:
+            self.transition(task_id, "queued", "Owner direction: "+direction)
+            self.db.execute("UPDATE tasks SET attempts=0 WHERE id=?", (task_id,))
         return True
