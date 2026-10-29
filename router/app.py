@@ -26,7 +26,7 @@ FREE_PROVIDERS = providers()
 KEY = os.getenv("FREE_ROUTER_KEY", "local-agent-only")
 RESERVE = min(50, integer("ROUTER_RESERVE_PERCENT", 10))
 TIMEOUT = max(15, integer("UPSTREAM_TIMEOUT_SECONDS", 120))
-ROUTER_REVISION = "2026-10-30-signature-guard"
+ROUTER_REVISION = "2026-10-30-capacity-recovery"
 
 
 @asynccontextmanager
@@ -37,6 +37,15 @@ async def lifespan(app):
 
 
 app = FastAPI(title="Unified Free Coding Router", lifespan=lifespan)
+
+
+def parse_retry_after(value):
+    if value is None:
+        return 90
+    try:
+        return max(1, int(float(value)))
+    except (ValueError, TypeError):
+        return 90
 
 
 def authorize(value):
@@ -60,10 +69,18 @@ def status_for(provider):
     level = ("critical" if any(x >= .95 for x in ratios.values()) else
              "handoff" if any(x >= .85 for x in ratios.values()) else
              "warning" if any(x >= .70 for x in ratios.values()) else "healthy")
+    quota_waits = {
+        period: DB.time_until_window(provider.name, seconds)
+        for period, seconds in (("minute", 60), ("hour", 3600), ("day", 86400))
+        if caps[period] and counts[period] >= caps[period]
+    }
+    wait = max([cooldown, *quota_waits.values()], default=0)
+    block_reason = (reason or (
+        "LOCAL_REQUEST_CAP:" + ",".join(quota_waits) if quota_waits else ""))
     return {"name": provider.name, "model": provider.model, "eligible": available,
             "counts": counts, "limits": caps, "utilization": ratios,
-            "warning": level, "cooldown_seconds": cooldown, "reason": reason,
-            "token_totals": DB.usage(provider.name)}
+            "warning": level, "cooldown_seconds": cooldown, "reason": block_reason,
+            "eligible_in_seconds": wait, "token_totals": DB.usage(provider.name)}
 
 
 def requires_tools(body):
@@ -85,9 +102,12 @@ def accepts_request(provider, body):
 
 
 def candidates(body):
-    approx = estimate_tokens(body)
+    # The prior len(JSON)//3 estimate is NOT a real tokenizer. Rejecting
+    # providers on that estimate caused false "no capacity" failures.
+    # OpenCode handles its declared context window; actual upstream model
+    # is responsible for validating the true tokenizer/context size.
     available = [p for p in FREE_PROVIDERS
-                 if approx < p.context and accepts_request(p, body) and status_for(p)["eligible"]]
+                 if accepts_request(p, body) and status_for(p)["eligible"]]
     if len(available) > 1:
         available.sort(key=lambda p: (
             status_for(p)["warning"] in ("handoff", "critical"),
@@ -109,7 +129,8 @@ def status(authorization: str | None = Header(default=None)):
                 for p in FREE_PROVIDERS],
             "any_available": any(status_for(p)["eligible"] for p in FREE_PROVIDERS),
             "any_tool_available": any(p.name != "gemini" and
-                                      status_for(p)["eligible"] for p in FREE_PROVIDERS)}
+                                      status_for(p)["eligible"] for p in FREE_PROVIDERS),
+            "router_revision": ROUTER_REVISION}
 
 
 @app.get("/v1/models")
@@ -130,15 +151,22 @@ async def chat(req: Request, authorization: str | None = Header(default=None)):
     stream = body.get("stream", False) is True
     options = candidates(body)
     if not options:
-        return JSONResponse(status_code=503, content={"error": {
-            "code": ("FREE_TOOL_CAPACITY_UNAVAILABLE" if requires_tools(body)
-                     else "FREE_CAPACITY_EXHAUSTED"),
-            "message": ("No compatible free provider currently has capacity for "
-                        "coding tools. Gemini is temporarily excluded because "
-                        "thought signatures may be lost in the client history."
-                        if requires_tools(body) else
-                        "No free model is currently eligible. Preserve your checkpoint "
-                        "and retry later.")}})
+        tool_request = requires_tools(body)
+        eligible = [p for p in FREE_PROVIDERS if accepts_request(p, body)]
+        reasons = [{"provider": p.name,
+                    "reason": status_for(p)["reason"] or "UNKNOWN",
+                    "eligible_in_seconds": status_for(p)["eligible_in_seconds"]}
+                   for p in eligible]
+        waits = [r["eligible_in_seconds"] for r in reasons if r["eligible_in_seconds"]]
+        retry_after = min(waits) if waits else 60
+        description = (", ".join(r["provider"] + ": " + r["reason"] for r in reasons)
+                       or "No configured compatible provider")
+        return JSONResponse(status_code=503, headers={"Retry-After": str(retry_after)},
+            content={"error": {
+                "code": ("FREE_TOOL_CAPACITY_UNAVAILABLE" if tool_request
+                         else "FREE_CAPACITY_EXHAUSTED"),
+                "message": "No free provider currently eligible: " + description,
+                "retry_after_seconds": retry_after, "providers": reasons}})
     errors = []
     for p in options:
         payload = dict(body)
@@ -158,10 +186,16 @@ async def chat(req: Request, authorization: str | None = Header(default=None)):
             errors.append(p.name + ": network error")
             continue
         elapsed = int((time.monotonic() - start) * 1000)
-        if upstream.status_code in (429, 500, 502, 503, 504):
+        # Transport, quota, auth and upstream model availability are provider
+        # specific. Try the next FREE route before returning an error.
+        retryable = (401, 402, 403, 404, 408, 429, 500, 502, 503, 504)
+        if upstream.status_code in retryable:
+            delay = (max(30, min(3600, parse_retry_after(
+                        upstream.headers.get("retry-after"))))
+                     if upstream.status_code == 429 else
+                     3600 if upstream.status_code in (401, 402, 403, 404) else 30)
             DB.add(p.name, upstream.status_code, elapsed)
-            DB.block(p.name, 90 if upstream.status_code == 429 else 30,
-                     "HTTP_" + str(upstream.status_code))
+            DB.block(p.name, delay, "HTTP_" + str(upstream.status_code))
             errors.append(p.name + ": HTTP " + str(upstream.status_code))
             await upstream.aclose()
             continue
@@ -196,5 +230,12 @@ async def chat(req: Request, authorization: str | None = Header(default=None)):
             DB.add(p.name, 502, elapsed)
             return JSONResponse(status_code=502, content={"error": {
                 "code": "UPSTREAM_INVALID_JSON", "message": "Provider returned non-JSON"}})
-    return JSONResponse(status_code=503, content={"error": {
-        "code": "ALL_PROVIDERS_FAILED", "message": "; ".join(errors)}})
+    statuses = [{"provider": p.name, "reason": status_for(p)["reason"],
+                 "eligible_in_seconds": status_for(p)["eligible_in_seconds"]}
+                for p in FREE_PROVIDERS if accepts_request(p, body)]
+    waits = [p["eligible_in_seconds"] for p in statuses if p["eligible_in_seconds"]]
+    retry = min(waits) if waits else 60
+    return JSONResponse(status_code=503, headers={"Retry-After": str(retry)},
+        content={"error": {"code": "ALL_PROVIDERS_FAILED",
+                           "message": "; ".join(errors),
+                           "retry_after_seconds": retry, "providers": statuses}})

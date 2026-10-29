@@ -44,6 +44,17 @@ class Store:
                 (provider, now - seconds)).fetchone()[0]
                 for k, seconds in (("minute", 60), ("hour", 3600), ("day", 86400))}
 
+    def time_until_window(self, provider, seconds):
+        """How long until one locally counted request leaves the capped window."""
+        with self.lock:
+            now = time.time()
+            row = self.db.execute(
+                "SELECT MIN(ts) FROM calls WHERE provider=? AND ts>=?",
+                (provider, now - seconds)).fetchone()
+            if not row or row[0] is None:
+                return 0
+            return max(1, int(row[0] + seconds - now) + 1)
+
     def cooldown(self, provider):
         with self.lock:
             row = self.db.execute(

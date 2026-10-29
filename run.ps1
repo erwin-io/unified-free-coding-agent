@@ -75,7 +75,7 @@ if (-not $oc) { $oc=Get-Command opencode -ErrorAction SilentlyContinue }
 if (-not $oc) { throw "OpenCode missing. Restart PowerShell and retry." }
 $online=$false
 try { $health=Invoke-RestMethod "http://127.0.0.1:4030/health" -TimeoutSec 2; $online=($health.status -eq "ok" -and $health.mode -eq "FREE_ONLY") } catch {}
-if ($online -and $health.revision -ne "2026-10-30-signature-guard") {
+if ($online -and $health.revision -ne "2026-10-30-capacity-recovery") {
   $routerPidFile = Join-Path $runtime "router.pid"
   if (-not (Test-Path $routerPidFile)) {
     throw "Router is outdated, but no local PID record exists. Close the router manually and retry."
