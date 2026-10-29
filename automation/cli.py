@@ -50,7 +50,7 @@ def checkpoint(path, task, note, tests="Not run"):
         "## Next action\n\n"
         "Inspect git diff, verify the implementation and resume acceptance criteria.\n"
     )
-    (folder / "HANDOFF.md").write_text(content, encoding="utf-8")
+    (folder / "SUPERVISOR_STATE.md").write_text(content, encoding="utf-8")
 
 
 def run_task(tasks, task):
@@ -79,7 +79,7 @@ def run_task(tasks, task):
     tasks.transition(task["id"], "running", "OpenCode job started", increment=True)
     checkpoint(location, task, "Started / previous modifications may exist.")
     prompt = (
-        "Work ONLY on the assigned task. Read AGENTS.md and .agent/HANDOFF.md first. "
+        "Work ONLY on the assigned task. Read AGENTS.md, .agent/HANDOFF.md and .agent/OWNER_DIRECTION.md if present. "
         "Task ID "+str(task["id"])+". Goal: "+task["goal"]+". "
         "Document changes and precise next steps in .agent/HANDOFF.md. "
         "Run local tests where permitted. Do not push, deploy, read .env or claim results you did not observe. "
@@ -185,13 +185,26 @@ def main():
         if not (target / ".git").is_dir():
             raise SystemExit("PROJECT_PATH must refer to an existing local Git repository")
         print("Initialized",project_files(target))
+        initial = os.getenv("INITIAL_TASK","").strip()
+        if initial:
+            tid = tasks.add("Initial task",initial,str(target),dedupe=True)
+            print("Initial task ready:",tid)
     elif args.cmd == "add":
         if not (project() / ".git").is_dir():
             raise SystemExit("PROJECT_PATH must be a local Git repository")
         print("New task #",tasks.add(args.title,args.goal,str(project())))
     elif args.cmd == "decide":
-        print("Decision saved" if tasks.approve(args.id,args.direction) else
-              "Task not eligible or ID not found")
+        task = tasks.get(args.id)
+        if not task or task["status"] not in ("awaiting_owner","ready_for_review"):
+            print("Task not eligible or ID not found")
+        else:
+            if task["status"] == "awaiting_owner":
+                folder = project_files(Path(task["project"]))
+                (folder / "OWNER_DIRECTION.md").write_text(
+                    "Task #"+str(args.id)+" owner direction:\n"+args.direction+"\n",encoding="utf-8")
+                (folder / "OWNER_REQUEST.md").write_text("",encoding="utf-8")
+            print("Decision saved" if tasks.approve(args.id,args.direction) else
+                  "Could not save decision")
     elif args.cmd == "status":
         print(json.dumps(tasks.all(),indent=2))
         try:
