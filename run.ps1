@@ -132,35 +132,30 @@ $demoManifest=Join-Path $project "package.json"
 if (Test-Path $demoManifest) {
   $demo=Get-Content -LiteralPath $demoManifest -Raw | ConvertFrom-Json
   if ($demo.name -eq "unified-agent-test-web-app") {
+    # Test failures must not block the editor: a coding agent may be needed to fix them.
+    $checksPassed = $true
     Push-Location $project
     try {
       & $npm.Source test
-      if ($LASTEXITCODE -ne 0) { throw "Demo backend tests failed; will not start." }
-      & $npm.Source run lint
-      if ($LASTEXITCODE -ne 0) { throw "Demo syntax validation failed." }
-    } finally { Pop-Location }
-    $demoOnline=$false
-    try {
-      $demoHealth=Invoke-RestMethod "http://127.0.0.1:3000/api/health" -TimeoutSec 2
-      if ($demoHealth.application -eq "test-nodejs-web-app") { $demoOnline=$true }
-      else { throw "Port 3000 is serving a different application." }
-    } catch {
-      if ($_.Exception.Message -like "*different application*") { throw }
-    }
-    if (-not $demoOnline) {
-      Write-Host "Starting Node.js UI and API..." -ForegroundColor Cyan
-      $dp=Start-Process -FilePath (Get-Command node.exe).Source -WorkingDirectory $project -PassThru -ArgumentList @("server.js") -RedirectStandardOutput (Join-Path $runtime "demo.out.log") -RedirectStandardError (Join-Path $runtime "demo.err.log")
-      $dp.Id | Set-Content (Join-Path $runtime "demo.pid")
-      Start-Sleep -Seconds 2
-    }
-    try {
-      $demoHealth=Invoke-RestMethod "http://127.0.0.1:3000/api/health" -TimeoutSec 5
-      if ($demoHealth.application -ne "test-nodejs-web-app" -or $demoHealth.status -ne "ok") {
-        throw "Unexpected demo health response."
+      if ($LASTEXITCODE -ne 0) {
+        $checksPassed = $false
+        Write-Warning "Node demo API tests failed (exit $LASTEXITCODE). The agent can inspect and repair them."
       }
-    } catch { throw "Node demo API failed to start. See .agent-runtime\demo.err.log." }
-    Write-Host "Node.js demo: http://127.0.0.1:3000" -ForegroundColor Green
-    Start-Process "http://127.0.0.1:3000"
+      & $npm.Source run lint
+      if ($LASTEXITCODE -ne 0) {
+        $checksPassed = $false
+        Write-Warning "Node demo syntax checks failed (exit $LASTEXITCODE)."
+      }
+    } finally { Pop-Location }
+    if (-not $checksPassed) {
+      Write-Warning "Node checks are NOT passing. Do not treat the app as validated."
+    }
+    try {
+      & (Join-Path $root "scripts\ensure-node-demo.ps1") -ProjectPath $project -RuntimePath $runtime -Port 3000 -OpenBrowser
+    } catch {
+      Write-Warning ("Node demo startup problem: " + $_.Exception.Message)
+      Write-Warning "Continuing to OpenCode so you can inspect and fix the Node project. Router and project files are unaffected."
+    }
   }
 }
 # Start the generated Angular + Node.js starter through the same launcher.

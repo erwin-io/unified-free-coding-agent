@@ -46,3 +46,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: ./scripts/test-bootstrap.ps1
+      - name: Windows Node server launch and port conflict recovery
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test-node-demo-launch.ps1

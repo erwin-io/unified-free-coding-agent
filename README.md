@@ -55,6 +55,21 @@ Repository: https://github.com/erwin-io/unified-free-coding-agent
 
 Key registration: docs/ACCOUNTS.md. Read docs/SECURITY.md before unattended operation.
 
+## Node demo server health and port conflicts
+
+The Windows launcher starts the Node demo through `scripts/ensure-node-demo.ps1`.
+It reuses a healthy server on port 3000, refuses to stop an unrelated service,
+and captures fresh Node stdout/stderr into `.agent-runtime/demo-*.log`.
+If the backend is broken (for example after an incomplete code edit), it shows
+the Node error and **continues opening OpenCode** so the agent can repair the
+project. The launcher never resets project files, Git, or API credentials.
+A passing `npm test` does not guarantee that a live server can start.
+
+If the browser cannot load the demo, inspect the warning and the latest
+`demo-*.err.log` file in `.agent-runtime`. Use
+`Get-NetTCPConnection -State Listen -LocalPort 3000` to inspect a port conflict.
+Do not kill unknown Node processes.
+
 ## Runtime controls
 
     powershell -ExecutionPolicy Bypass -File .\run.ps1 -Mode doctor
