@@ -1,0 +1,28 @@
+name: Angular + Node full-stack integration
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'automation/scaffold.py'
+      - 'templates/angular-node/**'
+      - '.github/workflows/angular-smoke.yml'
+  workflow_dispatch:
+jobs:
+  real-angular-cli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify Angular and Node.js scaffold, dependencies, API tests and build
+        run: python -m automation.scaffold --stack angular-node --target "$RUNNER_TEMP/unified-angular-node-integration"
+      - name: Verify generated artifacts
+        run: |
+          test -f "$RUNNER_TEMP/unified-angular-node-integration/frontend/angular.json"
+          test -f "$RUNNER_TEMP/unified-angular-node-integration/backend/server.mjs"
+          git -C "$RUNNER_TEMP/unified-angular-node-integration" log -1 --oneline
