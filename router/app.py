@@ -26,6 +26,7 @@ FREE_PROVIDERS = providers()
 KEY = os.getenv("FREE_ROUTER_KEY", "local-agent-only")
 RESERVE = min(50, integer("ROUTER_RESERVE_PERCENT", 10))
 TIMEOUT = max(15, integer("UPSTREAM_TIMEOUT_SECONDS", 120))
+ROUTER_REVISION = "2026-10-30-gemini38"
 
 
 @asynccontextmanager
