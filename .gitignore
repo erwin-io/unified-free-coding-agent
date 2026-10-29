@@ -1,0 +1,14 @@
+# Credentials and machine-local state
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.agent-router/
+.agent-runtime/
+*.sqlite
+*.sqlite3
+*.log
+.vscode/settings.json

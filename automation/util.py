@@ -1,0 +1,30 @@
+import os
+from pathlib import Path
+from router.config import load_env, flag, integer
+
+load_env()
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def project():
+    raw = os.getenv("PROJECT_PATH", "").strip()
+    return Path(raw).expanduser().resolve() if raw else ROOT
+
+
+def tasks_db():
+    return ROOT / ".agent-runtime" / "tasks.sqlite3"
+
+
+def project_files(path):
+    folder = path / ".agent"
+    folder.mkdir(parents=True, exist_ok=True)
+    templates = ROOT / "project-template" / ".agent"
+    if templates.is_dir():
+        for src in templates.iterdir():
+            target = folder / src.name
+            if src.is_file() and not target.exists():
+                target.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+    source = ROOT / "project-template" / "AGENTS.md"
+    if source.is_file() and not (path / "AGENTS.md").exists():
+        (path / "AGENTS.md").write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    return folder
