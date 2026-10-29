@@ -62,10 +62,16 @@ def run_task(tasks, task):
     try:
         capacity = api_status()
     except (OSError, urllib.error.URLError, ValueError):
+        if task["status"] != "waiting_capacity":
+            notify("[Unified Agent] Cloud router unavailable",
+                   "Task #"+str(task["id"])+" was saved and will resume when the router recovers.")
         tasks.transition(task["id"], "waiting_capacity", "Router not reachable",
                          time.time()+120)
         return
     if not capacity.get("any_available"):
+        if task["status"] != "waiting_capacity":
+            notify("[Unified Agent] All free models unavailable",
+                   "Task #"+str(task["id"])+" is checkpointed. The supervisor will check again automatically.")
         tasks.transition(task["id"], "waiting_capacity", "Every configured free model unavailable",
                          time.time()+max(120,integer("WORKER_POLL_SECONDS",60)))
         return
