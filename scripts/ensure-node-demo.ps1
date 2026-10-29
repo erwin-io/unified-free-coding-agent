@@ -51,7 +51,8 @@ $stderr = Join-Path $runtime ("demo-" + $runId + ".err.log")
 $previousPort = [Environment]::GetEnvironmentVariable("PORT", "Process")
 try {
   $env:PORT = [string]$Port
-  $child = Start-Process -FilePath $node.Source -WorkingDirectory $project -PassThru -ArgumentList @("server.js") -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+  $quotedEntrypoint = '"' + (Join-Path $project "server.js") + '"'
+  $child = Start-Process -FilePath $node.Source -WorkingDirectory $project -PassThru -ArgumentList @($quotedEntrypoint) -RedirectStandardOutput $stdout -RedirectStandardError $stderr
 } finally {
   [Environment]::SetEnvironmentVariable("PORT", $previousPort, "Process")
 }

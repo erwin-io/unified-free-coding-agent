@@ -42,6 +42,8 @@ jobs:
           $errors = $null
           [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path ./run.ps1), [ref]$tokens, [ref]$errors) | Out-Null
           if ($errors.Count -gt 0) { throw ($errors | Out-String) }
+          [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path ./scripts/app-control.ps1), [ref]$tokens, [ref]$errors) | Out-Null
+          if ($errors.Count -gt 0) { throw ($errors | Out-String) }
       - name: Windows bootstrap and interrupted-copy recovery
         if: runner.os == 'Windows'
         shell: pwsh

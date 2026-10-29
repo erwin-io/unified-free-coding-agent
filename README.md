@@ -70,6 +70,30 @@ If the browser cannot load the demo, inspect the warning and the latest
 `Get-NetTCPConnection -State Listen -LocalPort 3000` to inspect a port conflict.
 Do not kill unknown Node processes.
 
+## Start, status and stop a specific running app
+
+The launcher-managed Node demo uses a recorded PID in the local
+.agent-runtime/demo.pid. You can stop ONLY that app without closing OpenCode or
+the model router. Commands work directly and also when pasted into the
+OpenCode chat as instructions:
+
+    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Mode status-app
+    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Mode stop-app
+    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Mode start-app
+
+The stop command looks up the PID listening on port 3000, checks it is a
+node.exe server.js process, and verifies the exact source path or the
+recorded PID plus the demo health endpoint. It never kills all node.exe
+processes, does not touch port 4030, and does not alter the Git working tree.
+
+If an agent launched node.exe server.js outside the project manager (and
+the exact command-line path is missing), status-app shows the PID, and
+stop-app refuses by default. After you explicitly verify that it is your demo,
+you can run -Mode stop-app -AllowUntracked. This still requires the expected
+demo health response, so it cannot stop an arbitrary app merely by port.
+For Angular or a different Node/Python project, do not assume this demo-specific
+script can safely manage its processes; those need their own tracking profiles.
+
 ## Runtime controls
 
     powershell -ExecutionPolicy Bypass -File .\run.ps1 -Mode doctor

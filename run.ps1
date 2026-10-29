@@ -1,6 +1,7 @@
 param(
-  [ValidateSet("start","router","worker","once","status","doctor","test","init-project")][string]$Mode="start",
-  [ValidateSet("auto","node-web","angular-node","micropython","cpp")][string]$Stack="auto"
+  [ValidateSet("start","router","worker","once","status","doctor","test","init-project","start-app","stop-app","status-app")][string]$Mode="start",
+  [ValidateSet("auto","node-web","angular-node","micropython","cpp")][string]$Stack="auto",
+  [switch]$AllowUntracked
 )
 $ErrorActionPreference="Stop"
 $root=Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -18,6 +19,15 @@ Get-Content ".env" | ForEach-Object {
     [Environment]::SetEnvironmentVariable($pair[0].Trim(),$pair[1].Trim().Trim('"').Trim("'"),"Process")
   }
 }
+# App lifecycle commands do not start the AI gateway, install packages,
+# initialize Git, or change project files. Stop is an explicit owner action.
+$env:UNIFIED_AGENT_ROOT=$root
+if ($Mode -in @("start-app","stop-app","status-app")) {
+  $targetProject=if ($env:PROJECT_PATH) { [IO.Path]::GetFullPath($env:PROJECT_PATH) } else { $root }
+  $action=@{"start-app"="start";"stop-app"="stop";"status-app"="status"}[$Mode]
+  & (Join-Path $root "scripts\app-control.ps1") -Action $action -ProjectPath $targetProject -RuntimePath (Join-Path $root ".agent-runtime") -Port 3000 -AllowUntracked:$AllowUntracked
+  exit
+}
 $python=Join-Path $root ".venv\Scripts\python.exe"
 if (-not (Test-Path $python)) {
   if (Get-Command py -ErrorAction SilentlyContinue) { & py -3 -m venv .venv }
@@ -31,6 +41,7 @@ if ([int]$ver -lt 310) { throw "Python 3.10+ required." }
 if ($LASTEXITCODE -ne 0) { throw "Python dependency installation failed." }
 $runtime=Join-Path $root ".agent-runtime"
 New-Item -ItemType Directory -Force $runtime | Out-Null
+$env:UNIFIED_AGENT_ROOT=$root
 $env:OPENCODE_CONFIG=Join-Path $root "opencode.jsonc"
 $env:OPENCODE_CONFIG_DIR=Join-Path $root ".opencode"
 $project=if ($env:PROJECT_PATH) { [IO.Path]::GetFullPath($env:PROJECT_PATH) } else { $root }

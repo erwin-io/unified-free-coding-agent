@@ -11,3 +11,16 @@ board/toolchain settings without an explicit owner-approved board specification.
 Never reveal secrets, push, merge, deploy or touch production resources.
 Inspect git status and git diff after model changes.
 If blocked, write a specific question to .agent/OWNER_REQUEST.md and STOP.
+
+## Owner-controlled application processes
+When the owner asks to stop or restart a local development application, identify
+the project and port and inspect the actual running process. Do not kill every
+node.exe or python.exe process, do not call taskkill /IM, and never stop the
+AI router on port 4030. For the managed Node demo, use the following
+repository-owned command (UNIFIED_AGENT_ROOT is set by the launcher):
+powershell -ExecutionPolicy Bypass -File "$env:UNIFIED_AGENT_ROOT\run.ps1" -Mode status-app
+powershell -ExecutionPolicy Bypass -File "$env:UNIFIED_AGENT_ROOT\run.ps1" -Mode stop-app
+powershell -ExecutionPolicy Bypass -File "$env:UNIFIED_AGENT_ROOT\run.ps1" -Mode start-app
+Only use -AllowUntracked with explicit owner authorization after inspecting
+the PID/command line, and only for the requested project on port 3000.
+These actions never modify or delete project source files.

@@ -27,4 +27,13 @@ def project_files(path):
     source = ROOT / "project-template" / "AGENTS.md"
     if source.is_file() and not (path / "AGENTS.md").exists():
         (path / "AGENTS.md").write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    # Propagate process-control rules to projects bootstrapped before this change.
+    if instructions.is_file():
+        current = instructions.read_text(encoding="utf-8")
+        marker = "## Owner-controlled application processes"
+        template_text = source.read_text(encoding="utf-8") if source.is_file() else ""
+        if marker not in current and marker in template_text:
+            instructions.write_text(
+                current.rstrip() + "\n\n" + template_text[template_text.index(marker):].strip() + "\n",
+                encoding="utf-8")
     return folder

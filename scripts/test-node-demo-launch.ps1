@@ -43,6 +43,23 @@ try {
   if ($secondPid -ne $demoPid) { throw "Healthy demo must reuse the existing process." }
   Write-Host "PASS: healthy server reused without duplicate"
 
+  # Validate start/stop controls and identity verification.
+  $appControl = Join-Path $root "scripts\app-control.ps1"
+  & $appControl -Action status -ProjectPath $project -RuntimePath $runtime -Port $port1
+  & $appControl -Action stop -ProjectPath $project -RuntimePath $runtime -Port $port1
+  if (Started -Port $port1) { throw "Stop-app left the Node demo listening." }
+  if (Test-Path -LiteralPath (Join-Path $runtime "demo.pid")) {
+    throw "Successful stop left a tracked PID."
+  }
+  Write-Host "PASS: explicit app stop released the port without closing other services"
+  & $appControl -Action start -ProjectPath $project -RuntimePath $runtime -Port $port1
+  $restarted = [int](Get-Content -LiteralPath (Join-Path $runtime "demo.pid") -Raw)
+  [void]$childIds.Add($restarted)
+  if (-not (Started -Port $port1)) { throw "Start-app did not restart the demo." }
+  Write-Host "PASS: explicit start brought the demo back online"
+
+
+
   # A foreign listener must remain running and must not be killed.
   $foreignDir = Join-Path $temp "foreign"
   New-Item -ItemType Directory -Force -Path $foreignDir | Out-Null
@@ -77,6 +94,20 @@ http.createServer((_req,res)=>{
     throw "Foreign service was stopped unexpectedly."
   }
   Write-Host "PASS: port conflicts do not stop foreign services"
+
+  $stopRejected = $false
+  try {
+    & $appControl -Action stop -ProjectPath $project -RuntimePath $runtime -Port $port2
+  } catch {
+    if ($_.Exception.Message -match "not a verified Node.js demo") {
+      $stopRejected = $true
+    } else { throw }
+  }
+  if (-not $stopRejected -or -not (Get-Process -Id $foreign.Id -ErrorAction SilentlyContinue)) {
+    throw "The stop control must refuse to kill a different application on another port."
+  }
+  Write-Host "PASS: app stop never kills an unrelated Node process"
+
 
   # Failure logs must explain why the app crashed.
   $broken = Join-Path $temp "broken"
