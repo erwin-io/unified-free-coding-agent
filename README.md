@@ -100,6 +100,22 @@ AUTONOMOUS_AUTO_APPROVE=true only in a disposable test repo you control.
 The launcher then starts the local supervisor. One active coding agent at a time.
 The supervisor retries only a bounded number of times and never pushes to GitHub.
 
+## Gemini 3 and coding tools
+
+Google Gemini 3 requires thought signatures to be returned unchanged across
+multi-step function calls. Our OpenCode OpenAI-compatible history may omit these
+provider-specific signatures. The gateway therefore excludes direct Gemini
+from tool-enabled requests (including requests with past tool-call messages).
+Gemini remains available for normal text-only chat. Kilo and OpenRouter can
+serve tool requests when their free endpoints are eligible. If neither has
+capacity, the router returns HTTP 503 FREE_TOOL_CAPACITY_UNAVAILABLE instead
+of sending a tool request to Gemini that would fail with a signature-related 400.
+The task supervisor uses separate tool-capacity status for its retry decision.
+
+This is a conservative compatibility guard, **not** a complete Gemini
+thought-signature implementation. Full support requires retaining exact
+provider-specific signatures in streaming and persisted tool histories.
+
 ## How model switching works
 
 OpenCode always sees unified/auto-coder. This local gateway routes to:
