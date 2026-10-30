@@ -125,12 +125,27 @@ try {
 Write-Host "Local free-only router online." -ForegroundColor Green
 & $python -m automation.cli doctor
 if ($env:AUTONOMOUS_ENABLED -eq "true" -and $env:AUTONOMOUS_AUTO_APPROVE -eq "true") {
-  # Reuse the existing worker on subsequent double-click launches.
-  $workerPidFile=Join-Path $runtime "worker.pid"
-  $existingWorker=$null
+  $workerPidFile = Join-Path $runtime "worker.pid"
+  $existingWorker = $null
   if (Test-Path $workerPidFile) {
-    $rawPid=(Get-Content -LiteralPath $workerPidFile -Raw).Trim()
-    if ($rawPid -match '^[0-9]+
+    $rawPid = (Get-Content -LiteralPath $workerPidFile -Raw).Trim()
+    if ($rawPid -match "^[0-9]+$") {
+      $existingWorker = Get-CimInstance Win32_Process -Filter "ProcessId = $rawPid" -ErrorAction SilentlyContinue
+    }
+  }
+  if ($existingWorker) {
+    $verified = ($existingWorker.CommandLine -like "*automation.cli worker*" -and
+                 [IO.Path]::GetFullPath($existingWorker.ExecutablePath) -ieq
+                 [IO.Path]::GetFullPath($python))
+    if (-not $verified) {
+      throw "Existing worker PID is not verified as this installation. Refusing duplicate worker."
+    }
+    Write-Host "Autonomous worker already running PID $($existingWorker.ProcessId)." -ForegroundColor Cyan
+  } else {
+    $wp = Start-Process -FilePath $python -WorkingDirectory $root -PassThru -ArgumentList @("-m","automation.cli","worker") -RedirectStandardOutput (Join-Path $runtime "worker.out.log") -RedirectStandardError (Join-Path $runtime "worker.err.log")
+    $wp.Id | Set-Content (Join-Path $runtime "worker.pid")
+    Write-Warning "Unattended code execution enabled; use only a disposable test project."
+  }
 }
 if ($env:AUTONOMOUS_ENABLED -eq "true" -and $env:AUTONOMOUS_AUTO_APPROVE -eq "true") {
   Write-Host "Autonomous worker is running. Interactive OpenCode is not opened in this mode." -ForegroundColor Yellow
