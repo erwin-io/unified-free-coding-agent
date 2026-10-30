@@ -133,7 +133,7 @@ def scaffold(target: Path, stack: str, *, verify=True, git=True):
         try:
             major = int(subprocess.check_output(
                 ["node", "-p", "process.versions.node.split('.')[0]"],
-                text=True, timeout=10).strip())
+                text=True, timeout=45).strip())
         except (ValueError, OSError, subprocess.CalledProcessError) as error:
             raise ScaffoldError("Cannot determine Node.js version") from error
         if major < 20:
@@ -144,7 +144,7 @@ def scaffold(target: Path, stack: str, *, verify=True, git=True):
         # Check before running npx or modifying the target.
         try:
             version = subprocess.check_output(
-                ["node", "-p", "process.versions.node"], text=True, timeout=10).strip()
+                ["node", "-p", "process.versions.node"], text=True, timeout=45).strip()
             parts = tuple(int(x) for x in version.split(".")[:3])
         except (ValueError, OSError, subprocess.CalledProcessError) as error:
             raise ScaffoldError("Cannot determine Node.js version for Angular") from error

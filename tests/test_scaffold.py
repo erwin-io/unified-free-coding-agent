@@ -63,7 +63,9 @@ class ScaffoldTests(unittest.TestCase):
                     app = directory / "frontend" / "src" / "app"
                     app.mkdir(parents=True)
                     (app / "app.ts").write_text("GENERATED_BY_CLI",encoding="utf-8")
-            with patch("automation.scaffold._command",side_effect=cli_stub):
+            with patch("automation.scaffold._command",side_effect=cli_stub), \
+                 patch("automation.scaffold.subprocess.check_output",
+                       side_effect=["24", "24.15.0"]):
                 result = scaffold(dest, "angular-node", verify=False, git=False)
             self.assertFalse(result["verified"])
             self.assertIn("readonly status", (dest/"frontend/src/app/app.ts").read_text())
