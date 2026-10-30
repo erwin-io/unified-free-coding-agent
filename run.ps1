@@ -134,11 +134,13 @@ if ($env:AUTONOMOUS_ENABLED -eq "true" -and $env:AUTONOMOUS_AUTO_APPROVE -eq "tr
     }
   }
   if ($existingWorker) {
-    $verified = ($existingWorker.CommandLine -like "*automation.cli worker*" -and
-                 [IO.Path]::GetFullPath($existingWorker.ExecutablePath) -ieq
-                 [IO.Path]::GetFullPath($python))
-    if (-not $verified) {
-      throw "Existing worker PID is not verified as this installation. Refusing duplicate worker."
+    $workerCommand = [string]$existingWorker.CommandLine
+    $workerExe = [string]$existingWorker.ExecutablePath
+    if ($workerCommand -notlike "*automation.cli worker*") {
+      throw "Recorded worker is not an automation.cli worker. Refusing duplicate process."
+    }
+    if ($workerExe -ine $python) {
+      throw "Recorded worker uses a different Python executable. Refusing duplicate process."
     }
     Write-Host "Autonomous worker already running PID $($existingWorker.ProcessId)." -ForegroundColor Cyan
   } else {
