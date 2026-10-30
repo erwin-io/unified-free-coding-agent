@@ -24,3 +24,13 @@ powershell -ExecutionPolicy Bypass -File "$env:UNIFIED_AGENT_ROOT\run.ps1" -Mode
 Only use -AllowUntracked with explicit owner authorization after inspecting
 the PID/command line, and only for the requested project on port 3000.
 These actions never modify or delete project source files.
+
+## Project-level review checkpoint
+Read and honor .agent/CHECKLIST.md, .agent/BACKLOG.md and .agent/SPRINT.md.
+Approved backlog entries are the only unattended task source. For unattended
+work, the supervisor creates a dedicated agent/TASK-ID Git branch; never edit
+main directly in autonomous mode. Complete only the current approved scope.
+Record actual test exit codes and implementation decisions in HANDOFF.md.
+Never change the status to Tech Lead APPROVED yourself. Stop for review at
+ready_for_review. No direct push, PR publication, merge, deployment or
+production migrations without current, specific owner approval.

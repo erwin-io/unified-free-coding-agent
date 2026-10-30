@@ -1,5 +1,5 @@
 param(
-  [ValidateSet("start","router","worker","once","status","doctor","test","init-project","start-app","stop-app","status-app")][string]$Mode="start",
+  [ValidateSet("start","router","worker","once","status","review","github-status","doctor","test","init-project","start-app","stop-app","status-app")][string]$Mode="start",
   [ValidateSet("auto","node-web","angular-node","micropython","cpp")][string]$Stack="auto",
   [switch]$AllowUntracked
 )
@@ -28,6 +28,10 @@ if ($Mode -in @("start-app","stop-app","status-app")) {
   & (Join-Path $root "scripts\app-control.ps1") -Action $action -ProjectPath $targetProject -RuntimePath (Join-Path $root ".agent-runtime") -Port 3000 -AllowUntracked:$AllowUntracked
   exit
 }
+if ($Mode -eq "github-status") {
+  & (Join-Path $root "scripts\github-access.ps1") -Action status
+  exit
+}
 $python=Join-Path $root ".venv\Scripts\python.exe"
 if (-not (Test-Path $python)) {
   if (Get-Command py -ErrorAction SilentlyContinue) { & py -3 -m venv .venv }
@@ -48,7 +52,7 @@ $project=if ($env:PROJECT_PATH) { [IO.Path]::GetFullPath($env:PROJECT_PATH) } el
 if ($Mode -eq "test") { & $python -m unittest discover -s tests -v; exit $LASTEXITCODE }
 if ($Mode -eq "router") { & $python -m uvicorn router.app:app --host 127.0.0.1 --port 4030; exit $LASTEXITCODE }
 if ($Mode -eq "worker") { & $python -m automation.cli worker; exit $LASTEXITCODE }
-if ($Mode -in @("once","status","doctor","init-project")) { & $python -m automation.cli $Mode; exit $LASTEXITCODE }
+if ($Mode -in @("once","status","review","doctor","init-project")) { & $python -m automation.cli $Mode; exit $LASTEXITCODE }
 if (-not (Test-Path (Join-Path $project ".git"))) {
   $selectedStack = $Stack
   if ($selectedStack -eq "auto" -and $env:PROJECT_STACK) { $selectedStack = $env:PROJECT_STACK }
@@ -121,9 +125,118 @@ try {
 Write-Host "Local free-only router online." -ForegroundColor Green
 & $python -m automation.cli doctor
 if ($env:AUTONOMOUS_ENABLED -eq "true" -and $env:AUTONOMOUS_AUTO_APPROVE -eq "true") {
-  $wp=Start-Process -FilePath $python -WorkingDirectory $root -PassThru -ArgumentList @("-m","automation.cli","worker") -RedirectStandardOutput (Join-Path $runtime "worker.out.log") -RedirectStandardError (Join-Path $runtime "worker.err.log")
-  $wp.Id | Set-Content (Join-Path $runtime "worker.pid")
-  Write-Warning "Autonomous worker enabled; use ONLY a non-sensitive test repository."
+  # Reuse the existing worker on subsequent double-click launches.
+  $workerPidFile=Join-Path $runtime "worker.pid"
+  $existingWorker=$null
+  if (Test-Path $workerPidFile) {
+    $rawPid=(Get-Content -LiteralPath $workerPidFile -Raw).Trim()
+    if ($rawPid -match '^[0-9]+
+}
+$vs=Get-Command code.cmd -ErrorAction SilentlyContinue
+if (-not $vs) { $vs=Get-Command code -ErrorAction SilentlyContinue }
+if ($vs) {
+  try {
+    $exts= & $vs.Source --list-extensions | Out-String
+    if ($exts -notmatch "sst-dev.opencode-v2") {
+      Write-Host "Installing OpenCode VS Code integration (beta)..." -ForegroundColor Cyan
+      & $vs.Source --install-extension sst-dev.opencode-v2 | Out-Null
+    }
+    Start-Process -FilePath $vs.Source -ArgumentList @($project) | Out-Null
+  } catch {
+    Write-Warning "VS Code extension setup skipped; OpenCode CLI remains available."
+  }
+}
+$demoManifest=Join-Path $project "package.json"
+if (Test-Path $demoManifest) {
+  $demo=Get-Content -LiteralPath $demoManifest -Raw | ConvertFrom-Json
+  if ($demo.name -eq "unified-agent-test-web-app") {
+    # Test failures must not block the editor: a coding agent may be needed to fix them.
+    $checksPassed = $true
+    Push-Location $project
+    try {
+      & $npm.Source test
+      if ($LASTEXITCODE -ne 0) {
+        $checksPassed = $false
+        Write-Warning "Node demo API tests failed (exit $LASTEXITCODE). The agent can inspect and repair them."
+      }
+      & $npm.Source run lint
+      if ($LASTEXITCODE -ne 0) {
+        $checksPassed = $false
+        Write-Warning "Node demo syntax checks failed (exit $LASTEXITCODE)."
+      }
+    } finally { Pop-Location }
+    if (-not $checksPassed) {
+      Write-Warning "Node checks are NOT passing. Do not treat the app as validated."
+    }
+    try {
+      & (Join-Path $root "scripts\ensure-node-demo.ps1") -ProjectPath $project -RuntimePath $runtime -Port 3000 -OpenBrowser
+    } catch {
+      Write-Warning ("Node demo startup problem: " + $_.Exception.Message)
+      Write-Warning "Continuing to OpenCode so you can inspect and fix the Node project. Router and project files are unaffected."
+    }
+  }
+}
+# Start the generated Angular + Node.js starter through the same launcher.
+if (Test-Path $demoManifest) {
+  $appManifest = Get-Content -LiteralPath $demoManifest -Raw | ConvertFrom-Json
+  if ($appManifest.name -eq "unified-angular-node-starter") {
+    if (-not (Test-Path (Join-Path $project "frontend\package.json"))) {
+      throw "Angular project is missing frontend package.json."
+    }
+    $apiReady = $false
+    $uiReady = $false
+    try {
+      $apiStatus = Invoke-RestMethod "http://127.0.0.1:3001/api/health" -TimeoutSec 2
+      $apiReady = $apiStatus.service -eq "angular-node-api"
+    } catch {}
+    try {
+      $frontendStatus = Invoke-WebRequest "http://127.0.0.1:4200/" -UseBasicParsing -TimeoutSec 2
+      $uiReady = $frontendStatus.StatusCode -eq 200
+    } catch {}
+    if (-not $apiReady -and -not $uiReady) {
+      Write-Host "Starting Angular + Node.js development servers..." -ForegroundColor Cyan
+      $dev = Start-Process -FilePath "cmd.exe" -WorkingDirectory $project -PassThru -ArgumentList @("/d","/s","/c","npm run dev") -RedirectStandardOutput (Join-Path $runtime "angular.out.log") -RedirectStandardError (Join-Path $runtime "angular.err.log")
+      $dev.Id | Set-Content (Join-Path $runtime "angular.pid")
+      for ($attempt = 0; $attempt -lt 30; $attempt++) {
+        Start-Sleep -Seconds 2
+        try {
+          $apiStatus = Invoke-RestMethod "http://127.0.0.1:3001/api/health" -TimeoutSec 2
+          $frontendStatus = Invoke-WebRequest "http://127.0.0.1:4200/" -UseBasicParsing -TimeoutSec 2
+          $apiReady = $apiStatus.service -eq "angular-node-api"
+          $uiReady = $frontendStatus.StatusCode -eq 200
+          if ($apiReady -and $uiReady) { break }
+        } catch {}
+        if ($dev.HasExited) { break }
+      }
+    }
+    if (-not $apiReady -or -not $uiReady) {
+      throw "Angular UI or Node API not ready. Inspect .agent-runtime\angular.err.log and verify ports 4200/3001."
+    }
+    Write-Host "Angular UI: http://127.0.0.1:4200" -ForegroundColor Green
+    Write-Host "Node API: http://127.0.0.1:3001/api/health" -ForegroundColor Green
+    Start-Process "http://127.0.0.1:4200"
+  }
+}
+Write-Host "Approved tasks: $project\.agent\BACKLOG.md" -ForegroundColor Cyan
+Write-Host "Validation: existing project tests or .agent\validation.json" -ForegroundColor Cyan
+Write-Host "Opening OpenCode in $project ..." -ForegroundColor Cyan
+Set-Location $project
+& $oc.Source $project
+) {
+      $existingWorker=Get-CimInstance Win32_Process -Filter "ProcessId = $rawPid" -ErrorAction SilentlyContinue
+    }
+  }
+  if ($existingWorker) {
+    if ($existingWorker.CommandLine -notlike "*automation.cli worker*" -or
+        [IO.Path]::GetFullPath($existingWorker.ExecutablePath) -ine [IO.Path]::GetFullPath($python)) {
+      throw "Existing worker PID is not verified as this installation; refusing duplicate worker."
+    }
+    Write-Host "Reusing active autonomous worker PID $($existingWorker.ProcessId)." -ForegroundColor Cyan
+  } else {
+    $wp=Start-Process -FilePath $python -WorkingDirectory $root -PassThru -ArgumentList @("-m","automation.cli","worker") -RedirectStandardOutput (Join-Path $runtime "worker.out.log") -RedirectStandardError (Join-Path $runtime "worker.err.log")
+    $wp.Id | Set-Content (Join-Path $runtime "worker.pid")
+    Write-Warning "Autonomous worker enabled; use ONLY a non-sensitive test repository."
+  }
 }
 $vs=Get-Command code.cmd -ErrorAction SilentlyContinue
 if (-not $vs) { $vs=Get-Command code -ErrorAction SilentlyContinue }

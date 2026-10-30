@@ -205,3 +205,30 @@ A working source baseline does not establish real-provider compatibility.
 No owner-email reply parser, exact token-level streaming accounting, fully automatic
 per-tool checkpoints, or calendar-aligned sprint scheduling is implemented.
 See docs/ROADMAP.md for truthful status. Run in a nonconfidential repository first.
+
+
+## Windows double-click and manual Tech Lead review
+
+After pulling updates, close the existing OpenCode window and double-click
+RUN-AGENT.bat in this repository. It calls the tested PowerShell launcher
+using PROJECT_PATH from .env. It does not need a new API key.
+
+Each target project owns its own .agent/BACKLOG.md (Status: approved tasks),
+.agent/CHECKLIST.md (acceptance milestones), and .agent/SPRINT.md (human
+priorities). Autonomous processing is off unless both AUTONOMOUS_ENABLED and
+AUTONOMOUS_AUTO_APPROVE are explicitly enabled in .env. This is only
+appropriate for a controlled disposable test project because tool auto approval
+allows real local file commands.
+
+For unattended tasks the supervisor creates an agent/TASK-ID branch on main
+before editing, runs real project checks, generates TECH_LEAD_REVIEW.md,
+and pauses before the next approved task until manual reviewer/owner approval.
+No push, PR, or merge is automated. Upload the packet to a separate ChatGPT
+Tech Lead conversation along with relevant source diffs. You can also run
+RUN-REVIEW.bat for an interactive task. For approval, execute
+python -m automation.cli decide <TASK_ID> "APPROVED" after verifying the
+review, then arrange your GitHub PR and merge yourself. Use
+"CHANGES REQUIRED: <concrete findings>" to request further agent work
+on the same branch. Note: acceptance updates SQLite state; it does NOT merge.
+
+See docs/TECH_LEAD_WORKFLOW.md and docs/GITHUB_ACCESS.md.

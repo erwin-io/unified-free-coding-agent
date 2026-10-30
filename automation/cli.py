@@ -18,6 +18,7 @@ from .mail import notify
 from .backlog import sync_approved_tasks
 from .validation import validate_project
 from .records import Tasks
+from .review import ensure_task_branch, write_review_packet
 from .util import ROOT, flag, integer, project, project_files, tasks_db
 
 
@@ -78,6 +79,16 @@ def run_task(tasks, task):
                          time.time()+max(120,integer("WORKER_POLL_SECONDS",60)))
         return
 
+    # A local task branch is mandatory: never allow unattended edits to main.
+    try:
+        branch = ensure_task_branch(location, task)
+    except (OSError, RuntimeError) as error:
+        tasks.transition(task["id"], "awaiting_owner",
+                         "Branch safety gate: " + str(error))
+        notify("[Unified Agent] Branch decision needed",
+               "Task #" + str(task["id"]) + ": " + str(error))
+        return
+    print("Task branch:", branch)
     max_attempts = integer("MAX_TASK_ATTEMPTS", 2)
     if task["attempts"] >= max_attempts:
         tasks.transition(task["id"], "awaiting_owner", "Max execution attempts reached.")
@@ -95,6 +106,9 @@ def run_task(tasks, task):
         "Document actual commands, exit codes and conclusions in .agent/HANDOFF.md. "
         "An independent supervisor will rerun discovered tests before owner review. "
         "Never fabricate passing tests; if the project has no tests, report the gap. "
+        "Use the dedicated task branch and never merge or push without owner approval. "
+        "Update the project's CHECKLIST.md only with actual observed progress; "
+        "never approve your own Tech Lead review. "
         "Do not push, deploy, read .env or claim results you did not observe. "
         "If unsure, write .agent/OWNER_REQUEST.md with the decision needed and STOP. "
         "On retry inspect the existing diff first."
@@ -135,11 +149,13 @@ def run_task(tasks, task):
         "OpenCode exited "+str(exit_code)+"; independent validation not run.")
     checkpoint(location, task, "OpenCode exit="+str(exit_code), test_result)
     if exit_code == 0 and verified and verified.passed:
+        report = write_review_packet(location, task)
         tasks.transition(task["id"], "ready_for_review",
                          "Project scripts passed; owner must review diff and acceptance criteria.")
         notify("[Unified Agent] Ready for review — "+task["title"],
                "Task #"+str(task["id"])+" passed independently discovered project checks. "
-               "Inspect .agent/TEST_EVIDENCE.md and the local diff; nothing was pushed.")
+               "Upload " + str(report) + " to your ChatGPT Tech Lead reviewer. "
+               "Inspect actual source diff and test coverage; nothing was pushed or merged.")
     elif exit_code == 0 and verified and not verified.commands:
         tasks.transition(task["id"], "awaiting_owner",
                          "No usable project validation found; review task and add tests.")
@@ -170,6 +186,11 @@ def worker_once(tasks):
     imported = sync_approved_tasks(project(), tasks)
     if imported:
         print("Imported approved project tasks:", imported)
+    pending = tasks.review_pending(str(project()))
+    if pending:
+        print("Development paused: task #" + str(pending) +
+              " needs Tech Lead and owner review. No new work will start.")
+        return
     task = tasks.next(max(1,integer("MAX_TASKS_PER_DAY",3)),
                       max(600,integer("TASK_TIMEOUT_SECONDS",1800))+300)
     if task:
@@ -190,6 +211,7 @@ def main():
     d.add_argument("direction")
     subs.add_parser("init-project")
     subs.add_parser("status")
+    subs.add_parser("review")
     subs.add_parser("doctor")
     subs.add_parser("once")
     subs.add_parser("worker")
@@ -209,14 +231,32 @@ def main():
         task = tasks.get(args.id)
         if not task or task["status"] not in ("awaiting_owner","ready_for_review"):
             print("Task not eligible or ID not found")
+        elif task["status"] == "ready_for_review" and args.direction.upper().startswith("CHANGES REQUIRED:"):
+            folder = project_files(Path(task["project"]))
+            (folder / "OWNER_DIRECTION.md").write_text(
+                "Task #" + str(args.id) + " review corrections:\n" +
+                args.direction + "\n", encoding="utf-8")
+            tasks.transition(args.id, "queued", "Tech Lead requested corrections.")
+            tasks.db.execute("UPDATE tasks SET attempts=0 WHERE id=?", (args.id,))
+            print("Corrections queued on existing task branch; no merge.")
+        elif task["status"] == "ready_for_review" and args.direction.upper() == "BLOCKED":
+            tasks.transition(args.id, "awaiting_owner", "Tech Lead blocked merge.")
+            print("Review blocked; task paused.")
         else:
             if task["status"] == "awaiting_owner":
                 folder = project_files(Path(task["project"]))
                 (folder / "OWNER_DIRECTION.md").write_text(
-                    "Task #"+str(args.id)+" owner direction:\n"+args.direction+"\n",encoding="utf-8")
-                (folder / "OWNER_REQUEST.md").write_text("",encoding="utf-8")
+                    "Task #" + str(args.id) + " owner direction:\n" +
+                    args.direction + "\n", encoding="utf-8")
+                (folder / "OWNER_REQUEST.md").write_text("", encoding="utf-8")
             print("Decision saved" if tasks.approve(args.id,args.direction) else
-                  "Could not save decision")
+                  "Decision refused. For ready_for_review use APPROVED, "
+                  "CHANGES REQUIRED: reason, or BLOCKED.")
+    elif args.cmd == "review":
+        target = project()
+        report = write_review_packet(target)
+        print("Review packet ready for ChatGPT Tech Lead:", report)
+        print("NOT approved. This does not publish or merge to GitHub.")
     elif args.cmd == "status":
         print(json.dumps(tasks.all(),indent=2))
         try:

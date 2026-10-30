@@ -28,13 +28,18 @@ def project_files(path):
     instructions = path / "AGENTS.md"
     if source.is_file() and not instructions.exists():
         (path / "AGENTS.md").write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
-    # Propagate process-control rules to projects bootstrapped before this change.
-    if instructions.is_file():
+    # Add newly introduced rules to existing projects, without rewriting old
+    # instructions or creating repeated duplicate sections.
+    if instructions.is_file() and source.is_file():
         current = instructions.read_text(encoding="utf-8")
-        marker = "## Owner-controlled application processes"
-        template_text = source.read_text(encoding="utf-8") if source.is_file() else ""
-        if marker not in current and marker in template_text:
-            instructions.write_text(
-                current.rstrip() + "\n\n" + template_text[template_text.index(marker):].strip() + "\n",
-                encoding="utf-8")
+        template_text = source.read_text(encoding="utf-8")
+        for marker in ("## Owner-controlled application processes",
+                       "## Project-level review checkpoint"):
+            if marker not in current and marker in template_text:
+                remaining = template_text[template_text.index(marker):]
+                next_heading = remaining.find("\n## ", 4)
+                section = remaining if next_heading == -1 else remaining[:next_heading]
+                current = current.rstrip() + "\n\n" + section.strip() + "\n"
+        if current != instructions.read_text(encoding="utf-8"):
+            instructions.write_text(current, encoding="utf-8")
     return folder

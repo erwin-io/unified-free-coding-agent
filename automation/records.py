@@ -64,6 +64,12 @@ class Tasks:
             FROM tasks WHERE id=?""",(task_id,)).fetchone()
         return dict(zip(("id","title","goal","project","status","attempts","next_run","note"),row)) if row else None
 
+    def review_pending(self, project):
+        row = self.db.execute(
+            "SELECT id FROM tasks WHERE project=? AND status='ready_for_review' "
+            "ORDER BY id LIMIT 1", (project,)).fetchone()
+        return row[0] if row else None
+
     def next(self, limit=3, recover_seconds=3600):
         now = time.time()
         # Requeue a task interrupted by process crash or lost heartbeat.
@@ -89,7 +95,11 @@ class Tasks:
         if not task or task["status"] not in ("awaiting_owner","ready_for_review"):
             return False
         if task["status"] == "ready_for_review":
-            self.transition(task_id, "completed", "Owner accepted: "+direction)
+            if direction.strip().upper() != "APPROVED":
+                return False
+            self.transition(task_id, "completed",
+                            "Owner recorded APPROVED after Tech Lead review; "
+                            "GitHub PR and merge still require separate action.")
         else:
             self.transition(task_id, "queued", "Owner direction: "+direction)
             self.db.execute("UPDATE tasks SET attempts=0 WHERE id=?", (task_id,))
