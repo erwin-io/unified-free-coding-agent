@@ -1,20 +1,21 @@
 # Project development checklist
 
-The project owner controls this checklist. Approved BACKLOG.md items are the
-only source of tasks that the autonomous supervisor executes.
+This file belongs to the selected target project, not the agent repository.
+Owner controls this checklist. The supervisor only executes tasks explicitly
+marked Status: approved in BACKLOG.md.
 
-## Phase 1: Node.js demo
-- [x] Initial Node UI and REST API were scaffolded
-- [ ] TASK-001: Secure upload API and validation tests
-- [ ] TASK-002: Gallery and frontend acceptance
-- [ ] Tech Lead has inspected code, tests and security
-- [ ] Owner has authorized a GitHub pull request and merge
+## Current phase (edit for your project)
+- [ ] TASK-001: Define and implement the first approved project capability
+- [ ] TASK-002: Add feature-specific automated validation
+- [ ] Independent tests and security checks
+- [ ] Tech Lead code review and owner decision
+- [ ] Owner-authorized GitHub PR and merge (never automatic)
 
-## Acceptance gate
-- [ ] Feature-specific tests executed with real exit codes
-- [ ] Actual code diff inspected
-- [ ] Review packet generated for Tech Lead
-- [ ] Tech Lead reviewed and owner explicitly approved
-- [ ] No production changes or direct main writes
+## Review acceptance gate
+- [ ] New feature-specific tests have real exit codes
+- [ ] Actual code diff has been inspected
+- [ ] TECH_LEAD_REVIEW.md was generated on the task branch
+- [ ] Tech Lead recommended a decision; owner recorded it
+- [ ] No secrets, destructive actions, or unauthorized production operations
 
-Customize this file for each project's actual scope.
+Customize these items to match the project architecture and backlog.

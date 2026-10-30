@@ -132,6 +132,12 @@ if ($env:AUTONOMOUS_ENABLED -eq "true" -and $env:AUTONOMOUS_AUTO_APPROVE -eq "tr
     $rawPid=(Get-Content -LiteralPath $workerPidFile -Raw).Trim()
     if ($rawPid -match '^[0-9]+
 }
+if ($env:AUTONOMOUS_ENABLED -eq "true" -and $env:AUTONOMOUS_AUTO_APPROVE -eq "true") {
+  Write-Host "Autonomous worker is running. Interactive OpenCode is not opened in this mode." -ForegroundColor Yellow
+  Write-Host "Review task progress with RUN-REVIEW.bat or -Mode status." -ForegroundColor Cyan
+  Write-Host "Do not run an interactive coding session in this workspace simultaneously." -ForegroundColor Yellow
+  exit 0
+}
 $vs=Get-Command code.cmd -ErrorAction SilentlyContinue
 if (-not $vs) { $vs=Get-Command code -ErrorAction SilentlyContinue }
 if ($vs) {

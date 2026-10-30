@@ -60,9 +60,9 @@ class Tasks:
                 for row in rows]
 
     def get(self, task_id):
-        row = self.db.execute("""SELECT id,title,goal,project,status,attempts,next_run,note
+        row = self.db.execute("""SELECT id,title,goal,project,status,attempts,next_run,note,source_id
             FROM tasks WHERE id=?""",(task_id,)).fetchone()
-        return dict(zip(("id","title","goal","project","status","attempts","next_run","note"),row)) if row else None
+        return dict(zip(("id","title","goal","project","status","attempts","next_run","note","source_id"),row)) if row else None
 
     def review_pending(self, project):
         row = self.db.execute(
